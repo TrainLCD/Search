@@ -91,9 +91,9 @@ export default function Home() {
               </div>
             }
           >
-            <p className="font-medium opacity-90">東京メトロ副都心線</p>
+            <p className="font-medium opacity-90">東京メトロ副都心線 急行</p>
             <div className="flex items-center mt-1">
-              <p className="text-xs mr-1 opacity-50">東急線内 急行</p>
+              <p className="text-xs mr-1 opacity-50">東急線内 特急</p>
               <div className="w-2 h-2 rounded-full ml-1 bg-[#9c5e31]" />
               <div className="w-2 h-2 rounded-full ml-1 bg-[#da0442]" />
               <div className="w-2 h-2 rounded-full ml-1 bg-[#0067c0]" />
