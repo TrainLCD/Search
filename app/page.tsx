@@ -29,7 +29,7 @@ export default function Home() {
               <CheckIcon className="text-2xl text-default-400 transition-colors flex-shrink-0 cursor-pointer text-green-500" />
             }
           >
-            <p className="font-medium opacity-90">東京駅</p>
+            <p className="font-medium opacity-90">西葛西駅</p>
           </ListboxItem>
         </Listbox>
         <Input
@@ -53,7 +53,7 @@ export default function Home() {
               <CheckIcon className="text-2xl text-default-400 transition-colors flex-shrink-0 cursor-pointer text-green-500" />
             }
           >
-            <p className="font-medium opacity-90">半家駅</p>
+            <p className="font-medium opacity-90">中野駅</p>
           </ListboxItem>
         </Listbox>
 
