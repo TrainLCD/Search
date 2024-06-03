@@ -31,6 +31,17 @@ export default function Home() {
             }
           >
             <p className="font-medium opacity-90">渋谷駅</p>
+            <div className="flex items-center mt-1 h-4">
+              <div className="w-2 h-2 rounded-full ml-1 bg-[#80C241]" />
+              <div className="w-2 h-2 rounded-full ml-1 bg-[#00B48D]" />
+              <div className="w-2 h-2 rounded-full ml-1 bg-[#F68B1E]" />
+              <div className="w-2 h-2 rounded-full ml-1 bg-[#000088]" />
+              <div className="w-2 h-2 rounded-full ml-1 bg-[#EE0011]" />
+              <div className="w-2 h-2 rounded-full ml-1 bg-[#018D54]" />
+              <div className="w-2 h-2 rounded-full ml-1 bg-[#F39700]" />
+              <div className="w-2 h-2 rounded-full ml-1 bg-[#9B7CB6]" />
+              <div className="w-2 h-2 rounded-full ml-1 bg-[#BB641D]" />
+            </div>
           </ListboxItem>
           <ListboxItem
             className="py-4"
@@ -40,6 +51,9 @@ export default function Home() {
             }
           >
             <p className="font-medium opacity-90">高座渋谷駅</p>
+            <div className="flex items-center mt-1 h-4">
+              <div className="w-2 h-2 rounded-full ml-1 bg-[#2D8BD0]" />
+            </div>
           </ListboxItem>
         </Listbox>
         <Input
@@ -65,6 +79,11 @@ export default function Home() {
             }
           >
             <p className="font-medium opacity-90">元町駅</p>
+            <div className="flex items-center mt-1 h-4">
+              <div className="w-2 h-2 rounded-full ml-1 bg-[#0072BC]" />
+              <div className="w-2 h-2 rounded-full ml-1 bg-[#FFA00E]" />
+              <div className="w-2 h-2 rounded-full ml-1 bg-[#2560A8]" />
+            </div>
           </ListboxItem>
           <ListboxItem
             className="py-4"
@@ -75,6 +94,9 @@ export default function Home() {
             }
           >
             <p className="font-medium opacity-90">元町・中華街駅</p>
+            <div className="flex items-center mt-1 h-4">
+              <div className="w-2 h-2 rounded-full ml-1 bg-[#0067c0]" />
+            </div>
           </ListboxItem>
           <ListboxItem
             className="py-4"
@@ -84,6 +106,9 @@ export default function Home() {
             }
           >
             <p className="font-medium opacity-90">西元町駅</p>
+            <div className="flex items-center mt-1 h-4">
+              <div className="w-2 h-2 rounded-full ml-1 bg-[#2560A8]" />
+            </div>
           </ListboxItem>
         </Listbox>
 
@@ -106,9 +131,9 @@ export default function Home() {
           >
             <p className="font-medium opacity-90">東急東横線</p>
             <div className="flex items-center mt-1 h-4">
-              <p className="text-xs mr-1 opacity-50">みなとみらい線直通</p>
-              <div className="w-2 h-2 rounded-full ml-1 bg-[#da0442]" />
+              <div className="w-2 h-2 rounded-full bg-[#da0442]" />
               <div className="w-2 h-2 rounded-full ml-1 bg-[#0067c0]" />
+              <p className="text-xs ml-2 opacity-50">みなとみらい線直通</p>
             </div>
           </ListboxItem>
           <ListboxItem
@@ -122,7 +147,7 @@ export default function Home() {
           >
             <p className="font-medium opacity-90">湘南新宿ライン</p>
             <div className="flex items-center mt-1 h-4">
-              <div className="w-2 h-2 rounded-full ml-1 bg-[#e31f26]" />
+              <div className="w-2 h-2 rounded-full bg-[#e31f26]" />
               <div className="w-2 h-2 rounded-full ml-1 bg-[#0067c0]" />
             </div>
           </ListboxItem>
