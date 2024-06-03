@@ -8,7 +8,7 @@ import { Listbox, ListboxItem } from "@nextui-org/listbox";
 export default function Home() {
   return (
     <main className="flex w-screen min-h-screen flex-col items-center justify-center p-8 lg:p-24">
-      <form className="w-full lg:w-1/5">
+      <form className="w-full sm:w-full md:w-1/2 xl:w-1/3 2xl:w-1/5">
         <Input
           required
           label="駅名を入力してください"
