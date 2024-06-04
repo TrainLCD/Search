@@ -116,7 +116,8 @@ export default function Home() {
                   {sta.lines.map((line) => (
                     <div
                       key={line.id}
-                      className={`w-2 h-2 rounded-full ml-1 bg-[${line.color}]`}
+                      className="w-2 h-2 rounded-full ml-1"
+                      style={{ background: line.color }}
                     />
                   ))}
                 </div>
@@ -164,7 +165,8 @@ export default function Home() {
                   {sta.lines.map((line) => (
                     <div
                       key={line.id}
-                      className={`w-2 h-2 rounded-full ml-1 bg-[${line.color}]`}
+                      className="w-2 h-2 rounded-full ml-1"
+                      style={{ background: line.color }}
                     />
                   ))}
                 </div>
@@ -197,7 +199,8 @@ export default function Home() {
                     {route.lines.map((line) => (
                       <div
                         key={line.id}
-                        className={`w-2 h-2 rounded-full ml-1 bg-[${line.color}]`}
+                        className="w-2 h-2 rounded-full ml-1"
+                        style={{ background: line.color }}
                       />
                     ))}
                     <p className="text-xs ml-2 opacity-50">{route.notice}</p>
