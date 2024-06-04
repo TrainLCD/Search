@@ -1,8 +1,23 @@
 "use client";
 import { CheckIcon } from "@/icons/Check";
-import { PlusIcon } from "@/icons/Plus";
+import { ChevronBottomIcon } from "@/icons/ChevronBottom";
+import { ChevronRightIcon } from "@/icons/ChevronRight";
 import { Input } from "@nextui-org/input";
 import { Listbox, ListboxItem } from "@nextui-org/listbox";
+import { useDisclosure } from "@nextui-org/modal";
+import {
+  Button,
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownTrigger,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+} from "@nextui-org/react";
+import { useCallback, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 type Inputs = {
@@ -10,7 +25,7 @@ type Inputs = {
   selectedFromStationId: string;
   toStationName: string;
   selectedToStationId: string;
-  selectedTrainTypeId: string;
+  selectedRouteId: string;
 };
 
 const MOCK_DB = {
@@ -62,6 +77,10 @@ const MOCK_DB = {
       id: 1,
       lineName: "東急東横線",
       notice: "みなとみらい線直通",
+      trainTypes: [
+        { id: 1, typeName: "各駅停車", color: "#1F63C6" },
+        { id: 2, typeName: "急行", color: "#DC143C" },
+      ],
       lines: [
         { id: 1, color: "#0067c0" },
         { id: 2, color: "#da0442" },
@@ -71,7 +90,28 @@ const MOCK_DB = {
 };
 
 export default function Home() {
-  const { register, watch, setValue } = useForm<Inputs>();
+  const { register, watch, setValue, getValues } = useForm<Inputs>();
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const [selectedTrainTypeId, setSelectedTrainTypeId] = useState<number>(1);
+
+  const handleLineClick = useCallback(
+    (routeId: string) => () => {
+      setValue("selectedRouteId", routeId);
+      onOpenChange();
+    },
+    [onOpenChange, setValue]
+  );
+
+  const modalContent = useMemo(() => {
+    const route = MOCK_DB.matchedRoutes.find(
+      (r) => r.id === Number(getValues().selectedRouteId)
+    );
+    return {
+      id: route?.id,
+      lineName: route?.lineName ?? "",
+      trainType: route?.trainTypes.find((tt) => tt.id === selectedTrainTypeId),
+    };
+  }, [getValues, selectedTrainTypeId]);
 
   return (
     <main className="flex w-screen min-h-screen flex-col items-center justify-center p-8 lg:p-24">
@@ -188,9 +228,10 @@ export default function Home() {
                   showDivider={MOCK_DB.matchedRoutes.length < idx}
                   className="p-4"
                   key={route.id}
+                  onClick={handleLineClick(route.id.toString())}
                   endContent={
                     <div className="flex items-center">
-                      <PlusIcon className="text-2xl text-default-400 transition-colors flex-shrink-0 cursor-pointer" />
+                      <ChevronRightIcon className="text-2xl text-default-400 transition-colors flex-shrink-0 cursor-pointer" />
                     </div>
                   }
                 >
@@ -211,6 +252,85 @@ export default function Home() {
           </>
         )}
       </form>
+
+      <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex items-center gap-1">
+                {MOCK_DB.matchedRoutes.find(
+                  (r) => r.id === Number(watch("selectedRouteId"))
+                )?.lineName ?? ""}
+
+                <Dropdown>
+                  <DropdownTrigger>
+                    <Button
+                      variant="light"
+                      className="ml-2 p-0 text-sm font-bold"
+                      endContent={<ChevronBottomIcon />}
+                      style={{ color: modalContent.trainType?.color }}
+                    >
+                      {modalContent.trainType?.typeName}
+                    </Button>
+                  </DropdownTrigger>
+                  <DropdownMenu
+                    className="p-0"
+                    aria-label="Static Actions"
+                    selectionMode="single"
+                    onSelectionChange={(keys) =>
+                      setSelectedTrainTypeId(
+                        Number(Array.from(keys as Set<string>)[0])
+                      )
+                    }
+                  >
+                    {MOCK_DB.matchedRoutes.flatMap((r) =>
+                      r.trainTypes.map((tt) => (
+                        <DropdownItem
+                          startContent={
+                            <div
+                              key={tt.id}
+                              className="w-2 h-2 rounded-full"
+                              style={{ background: tt.color }}
+                            />
+                          }
+                          key={tt.id}
+                        >
+                          {tt.typeName}
+                        </DropdownItem>
+                      ))
+                    )}
+                  </DropdownMenu>
+                </Dropdown>
+              </ModalHeader>
+              <ModalBody>
+                <p>
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+                  Nullam pulvinar risus non risus hendrerit venenatis.
+                  Pellentesque sit amet hendrerit risus, sed porttitor quam.
+                </p>
+                <p>
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+                  Nullam pulvinar risus non risus hendrerit venenatis.
+                  Pellentesque sit amet hendrerit risus, sed porttitor quam.
+                </p>
+                <p>
+                  Magna exercitation reprehenderit magna aute tempor cupidatat
+                  consequat elit dolor adipisicing. Mollit dolor eiusmod sunt ex
+                  incididunt cillum quis. Velit duis sit officia eiusmod Lorem
+                  aliqua enim laboris do dolor eiusmod. Et mollit incididunt
+                  nisi consectetur esse laborum eiusmod pariatur proident Lorem
+                  eiusmod et. Culpa deserunt nostrud ad veniam.
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button color="primary" variant="light" onPress={onClose}>
+                  閉じる
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </main>
   );
 }

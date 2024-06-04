@@ -1,6 +1,6 @@
 import { SVGProps } from "react";
 
-export function PlusIcon(props: SVGProps<SVGSVGElement>) {
+export function ChevronRightIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -9,7 +9,10 @@ export function PlusIcon(props: SVGProps<SVGSVGElement>) {
       viewBox="0 0 24 24"
       {...props}
     >
-      <path fill="currentColor" d="M11 13H5v-2h6V5h2v6h6v2h-6v6h-2z"></path>
+      <path
+        fill="currentColor"
+        d="M12.6 12L8 7.4L9.4 6l6 6l-6 6L8 16.6z"
+      ></path>
     </svg>
   );
 }
