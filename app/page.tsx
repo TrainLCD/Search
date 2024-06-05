@@ -90,8 +90,8 @@ const MOCK_DB = {
 };
 
 export default function Home() {
-  const { register, watch, setValue, getValues } = useForm<Inputs>();
-  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const { register, watch, setValue } = useForm<Inputs>();
+  const { isOpen, onOpenChange } = useDisclosure();
   const [selectedTrainTypeId, setSelectedTrainTypeId] = useState<number>(1);
 
   const handleLineClick = useCallback(
@@ -102,16 +102,18 @@ export default function Home() {
     [onOpenChange, setValue]
   );
 
-  const modalContent = useMemo(() => {
-    const route = MOCK_DB.matchedRoutes.find(
-      (r) => r.id === Number(getValues().selectedRouteId)
-    );
-    return {
+  const route = MOCK_DB.matchedRoutes.find(
+    (r) => r.id === Number(watch("selectedRouteId"))
+  );
+
+  const modalContent = useMemo(
+    () => ({
       id: route?.id,
       lineName: route?.lineName ?? "",
       trainType: route?.trainTypes.find((tt) => tt.id === selectedTrainTypeId),
-    };
-  }, [getValues, selectedTrainTypeId]);
+    }),
+    [route?.id, route?.lineName, route?.trainTypes, selectedTrainTypeId]
+  );
 
   return (
     <main className="flex w-screen min-h-screen flex-col items-center justify-center p-8 lg:p-24">
@@ -219,10 +221,7 @@ export default function Home() {
             <p className="font-medium opacity-90 w-full mt-8">
               こちらの経路が見つかりました
             </p>
-            <Listbox
-              className="bg-white bg-opacity-80 mt-4 rounded-xl drop-shadow"
-              onAction={console.debug}
-            >
+            <Listbox className="bg-white bg-opacity-80 mt-4 rounded-xl drop-shadow">
               {MOCK_DB.matchedRoutes.map((route, idx) => (
                 <ListboxItem
                   showDivider={MOCK_DB.matchedRoutes.length < idx}
@@ -257,70 +256,58 @@ export default function Home() {
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader className="flex items-center gap-1">
-                {MOCK_DB.matchedRoutes.find(
-                  (r) => r.id === Number(watch("selectedRouteId"))
-                )?.lineName ?? ""}
+              <ModalHeader className="flex flex-col justify-center">
+                <div>
+                  {MOCK_DB.matchedRoutes.find(
+                    (r) => r.id === Number(watch("selectedRouteId"))
+                  )?.lineName ?? ""}
 
-                <Dropdown>
-                  <DropdownTrigger>
-                    <Button
-                      variant="light"
-                      className="ml-2 p-0 text-sm font-bold"
-                      endContent={<ChevronBottomIcon />}
-                      style={{ color: modalContent.trainType?.color }}
+                  <Dropdown>
+                    <DropdownTrigger>
+                      <Button
+                        variant="light"
+                        className="ml-2 p-0 text-sm font-bold"
+                        endContent={<ChevronBottomIcon />}
+                        style={{ color: modalContent.trainType?.color }}
+                      >
+                        {modalContent.trainType?.typeName}
+                      </Button>
+                    </DropdownTrigger>
+                    <DropdownMenu
+                      className="p-0"
+                      aria-label="Static Actions"
+                      selectionMode="single"
+                      onSelectionChange={(keys) =>
+                        setSelectedTrainTypeId(
+                          Number(Array.from(keys as Set<string>)[0])
+                        )
+                      }
                     >
-                      {modalContent.trainType?.typeName}
-                    </Button>
-                  </DropdownTrigger>
-                  <DropdownMenu
-                    className="p-0"
-                    aria-label="Static Actions"
-                    selectionMode="single"
-                    onSelectionChange={(keys) =>
-                      setSelectedTrainTypeId(
-                        Number(Array.from(keys as Set<string>)[0])
-                      )
-                    }
-                  >
-                    {MOCK_DB.matchedRoutes.flatMap((r) =>
-                      r.trainTypes.map((tt) => (
-                        <DropdownItem
-                          startContent={
-                            <div
-                              key={tt.id}
-                              className="w-2 h-2 rounded-full"
-                              style={{ background: tt.color }}
-                            />
-                          }
-                          key={tt.id}
-                        >
-                          {tt.typeName}
-                        </DropdownItem>
-                      ))
-                    )}
-                  </DropdownMenu>
-                </Dropdown>
+                      {MOCK_DB.matchedRoutes.flatMap((r) =>
+                        r.trainTypes.map((tt) => (
+                          <DropdownItem
+                            startContent={
+                              <div
+                                key={tt.id}
+                                className="w-2 h-2 rounded-full"
+                                style={{ background: tt.color }}
+                              />
+                            }
+                            key={tt.id}
+                          >
+                            {tt.typeName}
+                          </DropdownItem>
+                        ))
+                      )}
+                    </DropdownMenu>
+                  </Dropdown>
+                </div>
+                <p className="text-xs opacity-50">{route?.notice}</p>
               </ModalHeader>
+
               <ModalBody>
-                <p>
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                  Nullam pulvinar risus non risus hendrerit venenatis.
-                  Pellentesque sit amet hendrerit risus, sed porttitor quam.
-                </p>
-                <p>
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                  Nullam pulvinar risus non risus hendrerit venenatis.
-                  Pellentesque sit amet hendrerit risus, sed porttitor quam.
-                </p>
-                <p>
-                  Magna exercitation reprehenderit magna aute tempor cupidatat
-                  consequat elit dolor adipisicing. Mollit dolor eiusmod sunt ex
-                  incididunt cillum quis. Velit duis sit officia eiusmod Lorem
-                  aliqua enim laboris do dolor eiusmod. Et mollit incididunt
-                  nisi consectetur esse laborum eiusmod pariatur proident Lorem
-                  eiusmod et. Culpa deserunt nostrud ad veniam.
-                </p>
+                <p>停車駅: </p>
+                <p>{MOCK_DB.matchedRoutes.map((r) => r)}</p>
               </ModalBody>
               <ModalFooter>
                 <Button color="primary" variant="light" onPress={onClose}>
