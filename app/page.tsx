@@ -130,6 +130,15 @@ export default function Home() {
 
   const route = routes?.find((r) => r.id === Number(watch("selectedRouteId")));
 
+  const isHasTypeChange = useCallback(
+    (routeId: number) => {
+      const targetRoute = routes?.find((r) => r.id === routeId);
+      const typeIds = targetRoute?.stops.map((s) => s.trainType?.typeId);
+      return Array.from(new Set(typeIds)).length > 1;
+    },
+    [routes]
+  );
+
   const fromStop = route?.stops.find(
     (stop) => stop.groupId === Number(watch("selectedFromStationId"))
   );
@@ -281,19 +290,22 @@ export default function Home() {
                         stop.groupId === Number(watch("selectedFromStationId"))
                     )?.trainType?.name ?? ""}
                   </p>
-                  <div className="flex items-center mt-1 h-4">
-                    {Array.from(
-                      new Map(
-                        route.stops.map((stop) => [stop.line?.id, stop])
-                      ).values()
-                    ).map((stop) => (
-                      <div
-                        key={stop.line?.id}
-                        className="w-2 h-2 rounded-full ml-1 first:ml-0"
-                        style={{ background: stop.line?.color }}
-                      />
-                    ))}
-                    <p className="text-xs ml-2 opacity-50">
+                  <div className="mt-1">
+                    <div className="flex">
+                      {Array.from(
+                        new Map(
+                          route.stops.map((stop) => [stop.line?.id, stop])
+                        ).values()
+                      ).map((stop) => (
+                        <div
+                          key={stop.line?.id}
+                          className="w-2 h-2 rounded-full ml-1 first:ml-0"
+                          style={{ background: stop.line?.color }}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-xs opacity-50 mt-1">
+                      {isHasTypeChange(route.id) ? "種別変更あり " : ""}
                       {route.stops[0]?.name}駅から
                       {route.stops[route.stops.length - 1]?.name}駅まで
                     </p>
