@@ -24,67 +24,6 @@ type Inputs = {
   selectedRouteId: string;
 };
 
-const MOCK_DB = {
-  matchedFromStops: [
-    {
-      id: 1,
-      stationName: "渋谷",
-      lines: [
-        { id: 1, color: "#80C241" },
-        { id: 2, color: "#00B48D" },
-        { id: 3, color: "#F68B1E" },
-        { id: 4, color: "#000088" },
-        { id: 5, color: "#EE0011" },
-        { id: 6, color: "#018D54" },
-        { id: 7, color: "#F39700" },
-        { id: 8, color: "#9B7CB6" },
-        { id: 9, color: "#BB641D" },
-      ],
-    },
-    {
-      id: 2,
-      stationName: "高座渋谷",
-      lines: [{ id: 1, color: "#2D8BD0" }],
-    },
-  ],
-  matchedToStops: [
-    {
-      id: 1,
-      stationName: "元町",
-      lines: [
-        { id: 1, color: "#0072BC" },
-        { id: 2, color: "#FFA00E" },
-        { id: 3, color: "#2560A8" },
-      ],
-    },
-    {
-      id: 2,
-      stationName: "元町・中華街",
-      lines: [{ id: 1, color: "#0067c0" }],
-    },
-    {
-      id: 3,
-      stationName: "西元町",
-      lines: [{ id: 1, color: "#2560A8" }],
-    },
-  ],
-  matchedRoutes: [
-    {
-      id: 1,
-      lineName: "東急東横線",
-      notice: "みなとみらい線直通",
-      trainTypes: [
-        { id: 1, typeName: "各駅停車", color: "#1F63C6" },
-        { id: 2, typeName: "急行", color: "#DC143C" },
-      ],
-      stops: [
-        { id: 1, trainType: {}, name: "渋谷" },
-        { id: 2, tranType: {}, name: "池尻大橋" },
-      ],
-    },
-  ],
-};
-
 export default function Home() {
   const { register, watch, setValue } = useForm<Inputs>();
   const { isOpen, onOpenChange } = useDisclosure();
