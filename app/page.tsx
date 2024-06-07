@@ -3,6 +3,7 @@ import { useFetchRoutes } from "@/hooks/useFetchRoutes";
 import { useFetchStationsByName } from "@/hooks/useFetchStationsByName";
 import { CheckIcon } from "@/icons/Check";
 import { ChevronRightIcon } from "@/icons/ChevronRight";
+import dropEitherJunctionStation from "@/utils/dropJunctionStation";
 import { removeBrackets } from "@/utils/removeBracket";
 import { Input } from "@nextui-org/input";
 import { Listbox, ListboxItem } from "@nextui-org/listbox";
@@ -88,7 +89,10 @@ export default function Home() {
     [onOpenChange, setValue]
   );
 
-  const route = routes?.find((r) => r.id === Number(selectedRouteId));
+  const route = useMemo(
+    () => routes?.find((r) => r.id === Number(selectedRouteId)),
+    [routes, selectedRouteId]
+  );
 
   const isHasTypeChange = useCallback(
     (routeId: number) => {
@@ -99,8 +103,12 @@ export default function Home() {
     [routes]
   );
 
-  const fromStop = route?.stops.find(
-    (stop) => stop.groupId === Number(selectedFromStationId)
+  const fromStop = useMemo(
+    () =>
+      route?.stops.find(
+        (stop) => stop.groupId === Number(selectedFromStationId)
+      ),
+    [route?.stops, selectedFromStationId]
   );
 
   const modalContent = useMemo(
@@ -153,7 +161,7 @@ export default function Home() {
                   }
                   textValue={selectedToStationId}
                 >
-                  <p className="font-medium opacity-90">{sta.name}駅</p>
+                  <p className="font-medium opacity-90">{sta.name}</p>
                   <div className="flex items-center mt-1 h-4">
                     {sta.lines.map((line) => (
                       <div
@@ -219,7 +227,7 @@ export default function Home() {
                     }
                     textValue={selectedToStationId}
                   >
-                    <p className="font-medium opacity-90">{sta.name}駅</p>
+                    <p className="font-medium opacity-90">{sta.name}</p>
                     <div className="flex items-center mt-1 h-4">
                       {sta.lines.map((line) => (
                         <div
@@ -249,7 +257,7 @@ export default function Home() {
         )}
 
         {selectedFromStationId && selectedToStationId && (
-          <div className="flex flex-col justify-center flex-shrink-0 w-full h-dvh p-8 lg:p-16">
+          <div className="flex flex-col justify-center flex-shrink-0 w-full min-h-dvh p-8 lg:p-16">
             <p className="font-medium opacity-90 mb-8 text-center">
               {routes?.length
                 ? "こちらの経路が見つかりました"
@@ -358,7 +366,11 @@ export default function Home() {
 
                 <ModalBody>
                   <p className="font-bold">停車駅: </p>
-                  <p>{route?.stops.flatMap((stop) => stop.name).join("、")}</p>
+                  <p>
+                    {dropEitherJunctionStation(route?.stops ?? [])
+                      .flatMap((stop) => stop.name)
+                      .join("、")}
+                  </p>
                   <p className="font-bold">各線の種別: </p>
                   <div className="whitespace-pre-wrap">
                     {Array.from(
