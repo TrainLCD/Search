@@ -3,6 +3,7 @@ import { useFetchRoutes } from "@/hooks/useFetchRoutes";
 import { useFetchStationsByName } from "@/hooks/useFetchStationsByName";
 import { CheckIcon } from "@/icons/Check";
 import { ChevronRightIcon } from "@/icons/ChevronRight";
+import { removeBrackets } from "@/utils/removeBracket";
 import { Input } from "@nextui-org/input";
 import { Listbox, ListboxItem } from "@nextui-org/listbox";
 import {
@@ -224,24 +225,39 @@ export default function Home() {
                         stop.groupId === Number(watch("selectedFromStationId"))
                     )?.line?.nameShort ?? ""}
                     &nbsp;
-                    {route.stops.find(
-                      (stop) =>
-                        stop.groupId === Number(watch("selectedFromStationId"))
-                    )?.trainType?.name ?? ""}
+                    {removeBrackets(
+                      route.stops.find(
+                        (stop) =>
+                          stop.groupId ===
+                          Number(watch("selectedFromStationId"))
+                      )?.trainType?.name ?? ""
+                    )}
                   </p>
                   <div className="mt-1">
                     <div className="flex">
                       {Array.from(
                         new Map(
-                          route.stops.map((stop) => [stop.line?.id, stop])
+                          route.stops.map((stop) => [
+                            `${stop.line?.id}:${stop.line?.color}`,
+                            stop,
+                          ])
                         ).values()
-                      ).map((stop) => (
-                        <div
-                          key={stop.line?.id}
-                          className="w-2 h-2 rounded-full ml-1 first:ml-0"
-                          style={{ background: stop.line?.color }}
-                        />
-                      ))}
+                      )
+                        .filter((stop, idx, arr) => {
+                          const lineColors = arr.map((s) => s.line?.color);
+                          console.log(lineColors);
+                          if (lineColors.length === 1) {
+                            return true;
+                          }
+                          return lineColors.includes(stop.line?.color);
+                        })
+                        .map((stop) => (
+                          <div
+                            key={`${stop.line?.id}:${stop.line?.color}`}
+                            className="w-2 h-2 rounded-full ml-1 first:ml-0"
+                            style={{ background: stop.line?.color }}
+                          />
+                        ))}
                     </div>
                     <p className="text-xs opacity-50 mt-1">
                       {isHasTypeChange(route.id) ? "種別変更あり " : ""}
@@ -262,19 +278,39 @@ export default function Home() {
             <>
               <ModalHeader className="flex flex-col justify-center">
                 <div className="flex items-center">
-                  <span> {modalContent.lineName}</span>
+                  <span>{modalContent.lineName}</span>
                   <span
                     className="ml-1 text-sm"
                     style={{ color: modalContent.trainType?.color }}
                   >
-                    {modalContent.trainType?.name}
+                    {removeBrackets(modalContent.trainType?.name ?? "")}
                   </span>
                 </div>
               </ModalHeader>
 
               <ModalBody>
-                <p>停車駅: </p>
+                <p className="font-bold">停車駅: </p>
                 <p>{route?.stops.flatMap((stop) => stop.name).join("、")}</p>
+                <p className="font-bold">各線の種別: </p>
+                <div className="whitespace-pre-wrap">
+                  {Array.from(
+                    new Map(
+                      route?.stops.map((stop) => [stop.line?.id, stop])
+                    ).values()
+                  ).map((stop) => (
+                    <p key={stop.line?.id} className="flex flex-wrap">
+                      <span className="flex-1">{stop.line?.nameShort}: </span>
+                      <span
+                        className="flex-1 font-bold"
+                        style={{ color: stop.trainType?.color }}
+                      >
+                        {removeBrackets(
+                          stop.trainType?.name ?? "普通または各駅停車"
+                        )}
+                      </span>
+                    </p>
+                  ))}
+                </div>
               </ModalBody>
               <ModalFooter>
                 <Button color="primary" variant="light" onPress={onClose}>
