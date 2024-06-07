@@ -125,7 +125,7 @@ export default function Home() {
   return (
     <main className="flex flex-col w-full h-full mx-auto sm:w-full md:w-1/2 xl:w-1/3 2xl:w-1/4">
       <FormProvider {...methods}>
-        <div className="flex flex-col flex-shrink-0 w-full h-dvh p-8 lg:p-16">
+        <div className="flex flex-col flex-shrink-0 w-full min-h-dvh p-8 lg:p-16">
           <div className="flex-1">
             <Listbox
               aria-label="検索する駅名を入力してください"
