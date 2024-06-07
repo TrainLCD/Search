@@ -54,7 +54,7 @@ export default function Home() {
     stations: fromStations,
     error: fetchFromStationsError,
     isLoading: isFromStationsLoading,
-  } = useFetchStationsByName(debouncedFromStationName);
+  } = useFetchStationsByName(debouncedFromStationName?.replace(/駅$/, ""));
 
   const debouncedToStationName = useDebounce(
     toStationName?.trim(),
@@ -64,7 +64,7 @@ export default function Home() {
     stations: toStations,
     error: fetchToStationsError,
     isLoading: isToStationsLoading,
-  } = useFetchStationsByName(debouncedToStationName);
+  } = useFetchStationsByName(debouncedToStationName?.replace(/駅$/, ""));
 
   const { routes, isLoading: isRoutesLoading } = useFetchRoutes(
     Number(selectedFromStationId),
