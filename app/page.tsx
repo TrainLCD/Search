@@ -190,7 +190,7 @@ export default function Home() {
         </div>
 
         {selectedFromStationId && (
-          <div className="flex flex-col flex-shrink-0 w-full h-dvh p-8 lg:p-16">
+          <div className="flex flex-col flex-shrink-0 w-full min-h-dvh p-8 lg:p-16">
             <div className="flex-1">
               <Listbox
                 aria-label="行き先の駅名を入力してください"
