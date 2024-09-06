@@ -1,4 +1,5 @@
 "use client";
+import { StopCondition } from "@/gen/proto/stationapi_pb";
 import { useFetchRoutes } from "@/hooks/useFetchRoutes";
 import { useFetchStationsByName } from "@/hooks/useFetchStationsByName";
 import { CheckIcon } from "@/icons/Check";
@@ -26,6 +27,14 @@ type Inputs = {
   selectedToStationId: string;
   selectedRouteId: string;
 };
+
+const STOP_CONDITION_MAP = {
+  1: { text: "通過", color: "gray-400" },
+  2: { text: "一部通過", color: "yellow-400" },
+  3: { text: "平日通過", color: "blue-400" },
+  4: { text: "休日通過", color: "red-400" },
+  5: { text: "一部停車", color: "yellow-400" },
+} as const;
 
 export default function Home() {
   const methods = useForm<Inputs>();
@@ -366,11 +375,34 @@ export default function Home() {
 
                 <ModalBody>
                   <p className="font-bold">停車駅: </p>
-                  <p>
-                    {dropEitherJunctionStation(route?.stops ?? [])
-                      .flatMap((stop) => stop.name)
-                      .join("、")}
-                  </p>
+                  <div className="flex flex-wrap gap-x-2">
+                    {dropEitherJunctionStation(route?.stops ?? []).flatMap(
+                      (stop) =>
+                        stop.stopCondition === StopCondition.All ? (
+                          <span>{stop.name}</span>
+                        ) : (
+                          <span
+                            className={`text-${
+                              STOP_CONDITION_MAP[stop.stopCondition].color
+                            }`}
+                          >
+                            {stop.name}
+                          </span>
+                        )
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 flex-wrap">
+                    {Object.entries(STOP_CONDITION_MAP).map(([key, value]) => (
+                      <div className="flex items-center gap-2" key={key}>
+                        <div
+                          className={`w-4 h-4 bg-${value.color} border-1 rounded`}
+                        />
+                        <span>{value.text}</span>
+                      </div>
+                    ))}
+                  </div>
+
                   <p className="font-bold">各線の種別: </p>
                   <div className="whitespace-pre-wrap">
                     {Array.from(
