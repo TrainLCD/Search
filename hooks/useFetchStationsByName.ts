@@ -1,11 +1,17 @@
 import { grpcClient } from "@/api/client";
 import { GetStationsByNameRequest } from "@/gen/proto/stationapi_pb";
 import { generateSWRKey } from "@/utils/generateSWRKey";
-import { groupStations } from "@/utils/groupStations";
 import useSWR from "swr";
 
-export const useFetchStationsByName = (stationName: string) => {
-  const req = new GetStationsByNameRequest({ stationName, limit: 10 });
+export const useFetchStationsByName = (
+  stationName: string,
+  fromStationGroupId?: number
+) => {
+  const req = new GetStationsByNameRequest({
+    stationName,
+    limit: 100,
+    fromStationGroupId,
+  });
 
   const swrKey = generateSWRKey("getStationsByName", req);
 
@@ -19,12 +25,8 @@ export const useFetchStationsByName = (stationName: string) => {
     }
 
     const res = await grpcClient.getStationsByName(req);
-    return groupStations(res.stations);
+    return res.stations;
   });
 
-  const uniqueStations = Array.from(
-    new Map(stations?.map((sta) => [sta.groupId, sta])).values()
-  );
-
-  return { stations: uniqueStations, error, isLoading };
+  return { stations, error, isLoading };
 };

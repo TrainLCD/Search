@@ -14,7 +14,7 @@ import {
   ModalHeader,
   useDisclosure,
 } from "@nextui-org/modal";
-import { Button, Modal, ModalContent } from "@nextui-org/react";
+import { Button, Modal, ModalContent, Skeleton } from "@nextui-org/react";
 import { useDebounce } from "@uidotdev/usehooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
@@ -57,25 +57,24 @@ export default function Home() {
   const toStationName = useWatch({ control, name: "toStationName" });
   const selectedRouteId = useWatch({ control, name: "selectedRouteId" });
 
-  const debouncedFromStationName = useDebounce(
-    fromStationName?.trim(),
-    DEBOUNCE_DELAY
-  );
+  const debouncedFromStationName = useDebounce(fromStationName, DEBOUNCE_DELAY);
   const {
-    stations: fromStations,
+    stations: fromStations = [],
     error: fetchFromStationsError,
     isLoading: isFromStationsLoading,
-  } = useFetchStationsByName(debouncedFromStationName?.replace(/駅$/, ""));
-
-  const debouncedToStationName = useDebounce(
-    toStationName?.trim(),
-    DEBOUNCE_DELAY
+  } = useFetchStationsByName(
+    debouncedFromStationName?.replace(/駅$/, "")?.trim()
   );
+
+  const debouncedToStationName = useDebounce(toStationName, DEBOUNCE_DELAY);
   const {
-    stations: toStations,
+    stations: toStations = [],
     error: fetchToStationsError,
     isLoading: isToStationsLoading,
-  } = useFetchStationsByName(debouncedToStationName?.replace(/駅$/, ""));
+  } = useFetchStationsByName(
+    debouncedToStationName?.replace(/駅$/, "")?.trim(),
+    Number(selectedFromStationId)
+  );
 
   const { routes, isLoading: isRoutesLoading } = useFetchRoutes(
     Number(selectedFromStationId),
@@ -142,6 +141,29 @@ export default function Home() {
               className="bg-white rounded-xl drop-shadow"
               selectionMode="single"
               disallowEmptySelection
+              emptyContent={
+                isFromStationsLoading ? (
+                  <div className="p-2 pt-4 flex">
+                    <div className="flex-1">
+                      <Skeleton className="max-w-[300px] w-full h-4 rounded-md" />
+                      <div className="flex items-center mt-1 h-4">
+                        <Skeleton className="w-2 h-2 rounded-full ml-0  " />
+                        <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                        <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                        <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                        <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                      </div>
+                    </div>
+                    <Skeleton className="flex-shrink-0 w-6 h-6 rounded-full" />
+                  </div>
+                ) : (
+                  <div className="h-[60px] flex justify-center items-center px-2">
+                    <p className="font-medium text-center">
+                      駅が見つかりませんでした
+                    </p>
+                  </div>
+                )
+              }
               onSelectionChange={(keys) => {
                 const keysArr = Array.from(keys as Set<string>);
                 if (!keysArr.length) {
@@ -184,9 +206,6 @@ export default function Home() {
                 </ListboxItem>
               ))}
             </Listbox>
-            <p className="font-medium mt-2 text-xs opacity-50">
-              10駅以上の検索結果は表示されません
-            </p>
           </div>
 
           <Input
@@ -208,6 +227,29 @@ export default function Home() {
                 selectionMode="single"
                 hideSelectedIcon
                 disallowEmptySelection
+                emptyContent={
+                  isToStationsLoading ? (
+                    <div className="p-2 pt-4 flex">
+                      <div className="flex-1">
+                        <Skeleton className="max-w-[300px] w-full h-4 rounded-md" />
+                        <div className="flex items-center mt-1 h-4">
+                          <Skeleton className="w-2 h-2 rounded-full ml-0  " />
+                          <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                          <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                          <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                          <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                        </div>
+                      </div>
+                      <Skeleton className="flex-shrink-0 w-6 h-6 rounded-full" />
+                    </div>
+                  ) : (
+                    <div className="h-[60px] flex justify-center items-center px-2">
+                      <p className="font-medium text-center">
+                        駅が見つかりませんでした
+                      </p>
+                    </div>
+                  )
+                }
                 onSelectionChange={(keys) => {
                   const keysArr = Array.from(keys as Set<string>);
                   if (!keysArr.length) {
@@ -251,7 +293,7 @@ export default function Home() {
                 ))}
               </Listbox>
               <p className="font-medium mt-2 text-xs opacity-50">
-                10駅以上の検索結果は表示されません
+                最初に入力した駅から到達できる経路がない駅は表示されません
               </p>
             </div>
 
@@ -328,7 +370,7 @@ export default function Home() {
                             .map((stop) => (
                               <div
                                 key={`${stop.line?.id}:${stop.line?.color}`}
-                                className="w-2 h-2 rounded-full ml-1 first:ml-0"
+                                className="w-2 h-2 rounded-full ml-1"
                                 style={{ background: stop.line?.color }}
                               />
                             ))}
