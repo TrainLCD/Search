@@ -145,7 +145,7 @@ export default function Home() {
                 isFromStationsLoading ? (
                   <div className="p-2 pt-4 flex">
                     <div className="flex-1">
-                      <Skeleton className="max-w-[300px] w-full h-4 rounded-md" />
+                      <Skeleton className="max-w-[200px] w-full h-4 rounded-md" />
                       <div className="flex items-center mt-1 h-4">
                         <Skeleton className="w-2 h-2 rounded-full ml-0  " />
                         <Skeleton className="w-2 h-2 rounded-full ml-1" />
@@ -206,6 +206,9 @@ export default function Home() {
                 </ListboxItem>
               ))}
             </Listbox>
+            <p className="font-medium mt-2 text-xs opacity-50">
+              10駅以上の検索結果は表示されません
+            </p>
           </div>
 
           <Input
@@ -231,7 +234,7 @@ export default function Home() {
                   isToStationsLoading ? (
                     <div className="p-2 pt-4 flex">
                       <div className="flex-1">
-                        <Skeleton className="max-w-[300px] w-full h-4 rounded-md" />
+                        <Skeleton className="max-w-[200px] w-full h-4 rounded-md" />
                         <div className="flex items-center mt-1 h-4">
                           <Skeleton className="w-2 h-2 rounded-full ml-0  " />
                           <Skeleton className="w-2 h-2 rounded-full ml-1" />
@@ -245,7 +248,7 @@ export default function Home() {
                   ) : (
                     <div className="h-[60px] flex justify-center items-center px-2">
                       <p className="font-medium text-center">
-                        駅が見つかりませんでした
+                        接続駅が見つかりませんでした
                       </p>
                     </div>
                   )
@@ -317,7 +320,32 @@ export default function Home() {
             </p>
             {routes?.length !== 0 && (
               <>
-                <Listbox className="bg-white mt-4 rounded-xl drop-shadow">
+                <Listbox
+                  emptyContent={
+                    isRoutesLoading ? (
+                      <div className="p-2 pt-4 flex">
+                        <div className="flex-1">
+                          <Skeleton className="max-w-[200px] w-full h-4 rounded-md" />
+                          <div className="flex items-center mt-1 h-4">
+                            <Skeleton className="w-2 h-2 rounded-full ml-0  " />
+                            <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                            <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                            <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                            <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                          </div>
+                        </div>
+                        <Skeleton className="flex-shrink-0 w-6 h-6 rounded-full" />
+                      </div>
+                    ) : (
+                      <div className="h-[60px] flex justify-center items-center px-2">
+                        <p className="font-medium text-center">
+                          経路の取得に失敗しました
+                        </p>
+                      </div>
+                    )
+                  }
+                  className="bg-white mt-4 rounded-xl drop-shadow"
+                >
                   {(routes ?? []).map((route, idx) => (
                     <ListboxItem
                       showDivider={(routes ?? []).length < idx}
@@ -393,7 +421,10 @@ export default function Home() {
               variant="bordered"
               color="primary"
               className="mt-8 w-32 self-center"
-              onClick={() => scroll.scrollToTop()}
+              onClick={() => {
+                methods.reset();
+                scroll.scrollToTop();
+              }}
             >
               やり直す
             </Button>
