@@ -314,9 +314,7 @@ export default function Home() {
         {selectedFromStationId && selectedToStationId && (
           <div className="flex flex-col justify-center flex-shrink-0 w-full min-h-dvh p-8 lg:p-16">
             <p className="font-medium opacity-90 mb-8 text-center">
-              {routes?.length
-                ? "こちらの経路が見つかりました"
-                : "経路が見つかりませんでした"}
+              こちらの経路が見つかりました
             </p>
             {routes?.length !== 0 && (
               <>
