@@ -28,14 +28,14 @@ type Inputs = {
   selectedRouteId: string;
 };
 
-const STOP_CONDITION_MAP = {
-  0: { text: "停車", color: "black" },
-  1: { text: "通過", color: "gray-400" },
-  2: { text: "一部通過", color: "yellow-400" },
-  3: { text: "一部停車", color: "yellow-400" },
-  4: { text: "平日停車", color: "blue-400" },
-  5: { text: "休日停車", color: "red-400" },
-} as const;
+const STOP_CONDITIONS = [
+  { id: 0, text: "停車", color: "black" },
+  { id: 1, text: "通過", color: "gray-400" },
+  { id: 2, text: "一部通過", color: "yellow-400" },
+  { id: 5, text: "一部停車", color: "yellow-400" },
+  { id: 3, text: "平日停車", color: "blue-400" },
+  { id: 4, text: "休日停車", color: "red-400" },
+] as const;
 
 export default function Home() {
   const methods = useForm<Inputs>();
@@ -455,7 +455,9 @@ export default function Home() {
                         ) : (
                           <span
                             className={`text-${
-                              STOP_CONDITION_MAP[stop.stopCondition].color
+                              STOP_CONDITIONS.find(
+                                (cnd) => cnd.id === stop.stopCondition
+                              )?.color ?? ""
                             }`}
                           >
                             {stop.name}
@@ -465,12 +467,12 @@ export default function Home() {
                   </div>
 
                   <div className="flex gap-2 flex-wrap">
-                    {Object.entries(STOP_CONDITION_MAP).map(([key, value]) => (
-                      <div className="flex items-center gap-2" key={key}>
+                    {STOP_CONDITIONS.map((cnd) => (
+                      <div className="flex items-center gap-2" key={cnd.id}>
                         <div
-                          className={`w-4 h-4 bg-${value.color} border-1 rounded`}
+                          className={`w-4 h-4 bg-${cnd.color} border-1 rounded`}
                         />
-                        <span>{value.text}</span>
+                        <span>{cnd.text}</span>
                       </div>
                     ))}
                   </div>
