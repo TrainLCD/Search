@@ -32,9 +32,9 @@ const STOP_CONDITION_MAP = {
   0: { text: "停車", color: "black" },
   1: { text: "通過", color: "gray-400" },
   2: { text: "一部通過", color: "yellow-400" },
-  3: { text: "平日停車", color: "blue-400" },
-  4: { text: "休日停車", color: "red-400" },
-  5: { text: "一部停車", color: "yellow-400" },
+  3: { text: "一部停車", color: "yellow-400" },
+  4: { text: "平日停車", color: "blue-400" },
+  5: { text: "休日停車", color: "red-400" },
 } as const;
 
 export default function Home() {
