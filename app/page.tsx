@@ -1,12 +1,12 @@
 "use client";
-import { StopCondition } from "@/gen/proto/stationapi_pb";
+import { Station, StopCondition } from "@/gen/proto/stationapi_pb";
 import { useFetchRoutes } from "@/hooks/useFetchRoutes";
 import { useFetchStationsByName } from "@/hooks/useFetchStationsByName";
 import { CheckIcon } from "@/icons/Check";
 import { ChevronRightIcon } from "@/icons/ChevronRight";
+import { CloseSmallRoundedIcon } from "@/icons/CloseSmallRounded";
 import dropEitherJunctionStation from "@/utils/dropJunctionStation";
 import { removeBrackets } from "@/utils/removeBracket";
-import { Input } from "@nextui-org/input";
 import { Listbox, ListboxItem } from "@nextui-org/listbox";
 import {
   ModalBody,
@@ -14,11 +14,18 @@ import {
   ModalHeader,
   useDisclosure,
 } from "@nextui-org/modal";
-import { Button, Modal, ModalContent, Skeleton } from "@nextui-org/react";
+import {
+  Button,
+  Input,
+  Modal,
+  ModalContent,
+  Selection,
+  Skeleton,
+} from "@nextui-org/react";
+import { animated, useSpring } from "@react-spring/web";
 import { useDebounce } from "@uidotdev/usehooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
-import { animateScroll as scroll } from "react-scroll";
 
 type Inputs = {
   fromStationName: string;
@@ -37,11 +44,122 @@ const STOP_CONDITIONS = [
   { id: 4, text: "休日停車", color: "red-400" },
 ] as const;
 
+const StationListBox = ({
+  loading,
+  value,
+  stations,
+  isDirty,
+  selectedFromStation,
+  onSelectionChange,
+}: {
+  loading: boolean;
+  value: string;
+  stations: Station[];
+  isDirty: boolean;
+  selectedFromStation?: Station;
+  onSelectionChange: (keys: Selection) => void;
+}) => {
+  const springs = useSpring({
+    from: { opacity: 0, marginTop: "-8px" },
+    to: { opacity: 1, marginTop: "0px" },
+  });
+
+  return (
+    <animated.div
+      style={springs}
+      className="flex flex-col flex-shrink-0 min-h-dvh w-11/12 mx-auto pt-4 pb-24"
+    >
+      <Listbox
+        aria-label="検索する駅名を入力してください"
+        className="w-full rounded-xl shadow bg-white overflow-y-scroll px-4"
+        selectionMode="single"
+        disallowEmptySelection
+        emptyContent={
+          loading ? (
+            <div className="w-full p-2 pt-4 flex">
+              <div className="flex-1">
+                <Skeleton className="max-w-[200px] w-full h-4 rounded-md" />
+                <div className="flex items-center mt-1 h-4">
+                  <Skeleton className="w-2 h-2 rounded-full ml-0  " />
+                  <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                  <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                  <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                  <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                </div>
+              </div>
+              <Skeleton className="flex-shrink-0 w-6 h-6 rounded-full" />
+            </div>
+          ) : (
+            <div className="w-full h-[60px] flex justify-center items-center px-2">
+              <p className="font-medium text-center">
+                {isDirty
+                  ? "指定された駅が見つからないか、経路情報が登録されていません。"
+                  : "検索する駅名を入力してください"}
+              </p>
+            </div>
+          )
+        }
+        onSelectionChange={onSelectionChange}
+      >
+        {stations.map((sta) => (
+          <ListboxItem
+            key={sta.groupId}
+            className="p-4"
+            hideSelectedIcon
+            endContent={
+              <CheckIcon
+                className={`text-2xl transition-colors flex-shrink-0 cursor-pointer ${
+                  value === sta.groupId.toString()
+                    ? "text-green-500"
+                    : "text-default-400"
+                }`}
+              />
+            }
+            textValue={value}
+          >
+            <p className="font-medium opacity-90">{sta.name}</p>
+            <div className="flex items-center mt-1 h-4">
+              {sta.lines.map((line) => (
+                <div
+                  key={line.id}
+                  className="w-2 h-2 rounded-full ml-1 first:ml-0"
+                  style={{ background: line.color }}
+                />
+              ))}
+            </div>
+          </ListboxItem>
+        ))}
+      </Listbox>
+      <p className="font-medium mt-2 text-xs opacity-50">
+        {selectedFromStation ? (
+          <span className="font-bold">
+            始点駅として &nbsp;{selectedFromStation.name}
+            &nbsp;が選択されています。
+          </span>
+        ) : null}
+        {selectedFromStation ? (
+          <span>
+            <br />
+            始点駅と接続していない駅と
+          </span>
+        ) : null}
+        10駅以上の検索結果は表示されません。
+      </p>
+    </animated.div>
+  );
+};
+
 export default function Home() {
   const methods = useForm<Inputs>();
-  const { register, setValue, control } = methods;
+  const {
+    register,
+    setValue,
+    control,
+    formState: { dirtyFields },
+  } = methods;
   const { isOpen, onOpenChange } = useDisclosure();
   const [selectedTrainTypeId, setSelectedTrainTypeId] = useState<number>(1);
+  const [screenPhase, setScreenPhase] = useState<"src" | "dst" | "res">("src");
 
   const DEBOUNCE_DELAY = 1000;
 
@@ -76,16 +194,30 @@ export default function Home() {
     Number(selectedFromStationId)
   );
 
-  const { routes, isLoading: isRoutesLoading } = useFetchRoutes(
+  const {
+    routes,
+    isLoading: isRoutesLoading,
+    error: routesLoadingError,
+  } = useFetchRoutes(
     Number(selectedFromStationId),
     Number(selectedToStationId)
   );
 
-  useEffect(() => {
-    if (selectedFromStationId) {
-      scroll.scrollMore(window.innerHeight);
+  const footerSprings = useSpring({
+    from: { opacity: 0, bottom: `-100%` },
+    to: { opacity: 1, bottom: "0%" },
+  });
+
+  const inputLabel = useMemo(() => {
+    switch (screenPhase) {
+      case "src":
+        return "検索する駅名を入力してください";
+      case "dst":
+        return "行き先の駅名を入力してください";
+      default:
+        return "";
     }
-  }, [selectedFromStationId, selectedToStationId]);
+  }, [screenPhase]);
 
   const handleLineClick = useCallback(
     (routeId: number, trainTypeId: number | undefined) => () => {
@@ -132,107 +264,59 @@ export default function Home() {
   );
 
   return (
-    <main className="flex flex-col w-full h-full mx-auto sm:w-full md:w-1/2 xl:w-1/3 2xl:w-1/4">
+    <main className="flex flex-col w-screen h-full mx-auto overflow-hidden">
       <FormProvider {...methods}>
-        <div className="flex flex-col flex-shrink-0 w-full min-h-dvh p-8 lg:p-16">
-          <div className="flex-1">
-            <Listbox
-              aria-label="検索する駅名を入力してください"
-              className="bg-white rounded-xl drop-shadow"
-              selectionMode="single"
-              disallowEmptySelection
-              emptyContent={
-                isFromStationsLoading ? (
-                  <div className="p-2 pt-4 flex">
-                    <div className="flex-1">
-                      <Skeleton className="max-w-[200px] w-full h-4 rounded-md" />
-                      <div className="flex items-center mt-1 h-4">
-                        <Skeleton className="w-2 h-2 rounded-full ml-0  " />
-                        <Skeleton className="w-2 h-2 rounded-full ml-1" />
-                        <Skeleton className="w-2 h-2 rounded-full ml-1" />
-                        <Skeleton className="w-2 h-2 rounded-full ml-1" />
-                        <Skeleton className="w-2 h-2 rounded-full ml-1" />
-                      </div>
-                    </div>
-                    <Skeleton className="flex-shrink-0 w-6 h-6 rounded-full" />
-                  </div>
-                ) : (
-                  <div className="h-[60px] flex justify-center items-center px-2">
-                    <p className="font-medium text-center">
-                      駅が見つかりませんでした
-                    </p>
-                  </div>
-                )
-              }
-              onSelectionChange={(keys) => {
-                const keysArr = Array.from(keys as Set<string>);
-                if (!keysArr.length) {
-                  setValue("selectedToStationId", "");
-                  setValue("selectedRouteId", "");
-                  setValue("selectedFromStationId", "");
-                  return;
-                }
-
-                setValue("selectedFromStationId", keysArr[0]);
-              }}
-            >
-              {fromStations.map((sta, idx) => (
-                <ListboxItem
-                  className="p-4"
-                  key={sta.groupId}
-                  showDivider={fromStations.length < idx}
-                  hideSelectedIcon
-                  endContent={
-                    <CheckIcon
-                      className={`text-2xl transition-colors flex-shrink-0 cursor-pointer ${
-                        selectedFromStationId === sta.groupId.toString()
-                          ? "text-green-500"
-                          : "text-default-400"
-                      }`}
-                    />
-                  }
-                  textValue={selectedToStationId}
-                >
-                  <p className="font-medium opacity-90">{sta.name}</p>
-                  <div className="flex items-center mt-1 h-4">
-                    {sta.lines.map((line) => (
-                      <div
-                        key={line.id}
-                        className="w-2 h-2 rounded-full ml-1 first:ml-0"
-                        style={{ background: line.color }}
-                      />
-                    ))}
-                  </div>
-                </ListboxItem>
-              ))}
-            </Listbox>
-            <p className="font-medium mt-2 text-xs opacity-50">
-              10駅以上の検索結果は表示されません
-            </p>
-          </div>
-
-          <Input
-            className="mt-8"
-            required
-            autoFocus
-            variant="faded"
-            label="検索する駅名を入力してください"
-            {...register("fromStationName")}
+        {screenPhase === "src" && (
+          <StationListBox
+            loading={isFromStationsLoading}
+            value={selectedFromStationId}
+            stations={fromStations}
+            isDirty={dirtyFields.fromStationName ?? false}
+            onSelectionChange={(keys) => {
+              const keysArr = Array.from(keys as Set<string>);
+              setValue("selectedFromStationId", keysArr[0]);
+              setScreenPhase("dst");
+            }}
           />
-        </div>
+        )}
 
-        {selectedFromStationId && (
-          <div className="flex flex-col flex-shrink-0 w-full min-h-dvh p-8 lg:p-16">
-            <div className="flex-1">
+        {screenPhase === "dst" && (
+          <StationListBox
+            loading={isToStationsLoading}
+            value={selectedToStationId}
+            stations={toStations}
+            isDirty={dirtyFields.toStationName ?? false}
+            selectedFromStation={fromStations?.find(
+              (s) => s.groupId === Number(selectedFromStationId)
+            )}
+            onSelectionChange={(keys) => {
+              const keysArr = Array.from(keys as Set<string>);
+              setValue("selectedToStationId", keysArr[0]);
+              setScreenPhase("res");
+            }}
+          />
+        )}
+
+        {screenPhase === "res" && (
+          <div className="flex flex-col flex-shrink-0 min-h-dvh max-h-screen pt-4 pb-24 w-11/12 mx-auto">
+            <p className="font-medium opacity-90 text-center">
+              こちらの経路が見つかりました
+            </p>
+            <p className="font-medium opacity-50 mt-1 mb-8 text-center text-xs">
+              {fromStations?.find(
+                (s) => s.groupId === Number(selectedFromStationId)
+              )?.name ?? ""}
+              &nbsp;-&nbsp;
+              {toStations.find((s) => s.groupId === Number(selectedToStationId))
+                ?.name ?? ""}
+            </p>
+
+            <>
               <Listbox
-                aria-label="行き先の駅名を入力してください"
-                className="bg-white rounded-xl drop-shadow"
-                selectionMode="single"
-                hideSelectedIcon
-                disallowEmptySelection
+                className="w-full rounded-xl shadow bg-white overflow-y-scroll px-4"
                 emptyContent={
-                  isToStationsLoading ? (
-                    <div className="p-2 pt-4 flex">
+                  isRoutesLoading ? (
+                    <div className="w-full p-2 pt-4 flex">
                       <div className="flex-1">
                         <Skeleton className="max-w-[200px] w-full h-4 rounded-md" />
                         <div className="flex items-center mt-1 h-4">
@@ -246,202 +330,145 @@ export default function Home() {
                       <Skeleton className="flex-shrink-0 w-6 h-6 rounded-full" />
                     </div>
                   ) : (
-                    <div className="h-[60px] flex justify-center items-center px-2">
-                      <p className="font-medium text-center">
-                        接続駅が見つかりませんでした
-                      </p>
-                    </div>
-                  )
-                }
-                onSelectionChange={(keys) => {
-                  const keysArr = Array.from(keys as Set<string>);
-                  if (!keysArr.length) {
-                    setValue("selectedRouteId", "");
-                    setValue("selectedToStationId", "");
-                    return;
-                  }
-                  setValue(
-                    "selectedToStationId",
-                    Array.from(keys as Set<string>)[0]
-                  );
-                }}
-              >
-                {toStations.map((sta, idx) => (
-                  <ListboxItem
-                    className="p-4"
-                    key={sta.groupId}
-                    showDivider={toStations.length < idx}
-                    endContent={
-                      <CheckIcon
-                        className={`text-2xl transition-colors flex-shrink-0 cursor-pointer ${
-                          selectedToStationId === sta.groupId.toString()
-                            ? "text-green-500"
-                            : "text-default-400"
-                        }`}
-                      />
-                    }
-                    textValue={selectedToStationId}
-                  >
-                    <p className="font-medium opacity-90">{sta.name}</p>
-                    <div className="flex items-center mt-1 h-4">
-                      {sta.lines.map((line) => (
-                        <div
-                          key={line.id}
-                          className="w-2 h-2 rounded-full ml-1 first:ml-0"
-                          style={{ background: line.color }}
-                        />
-                      ))}
-                    </div>
-                  </ListboxItem>
-                ))}
-              </Listbox>
-              <p className="font-medium mt-2 text-xs opacity-50">
-                最初に入力した駅から到達できる経路がない駅は表示されません
-              </p>
-            </div>
-
-            <Input
-              required
-              autoFocus
-              variant="faded"
-              label="行き先の駅名を入力してください"
-              className="mt-4"
-              {...register("toStationName")}
-            />
-          </div>
-        )}
-
-        {selectedFromStationId && selectedToStationId && (
-          <div className="flex flex-col justify-center flex-shrink-0 w-full min-h-dvh p-8 lg:p-16">
-            <p className="font-medium opacity-90 mb-8 text-center">
-              こちらの経路が見つかりました
-            </p>
-            {routes?.length !== 0 && (
-              <>
-                <Listbox
-                  emptyContent={
-                    isRoutesLoading ? (
-                      <div className="p-2 pt-4 flex">
-                        <div className="flex-1">
-                          <Skeleton className="max-w-[200px] w-full h-4 rounded-md" />
-                          <div className="flex items-center mt-1 h-4">
-                            <Skeleton className="w-2 h-2 rounded-full ml-0  " />
-                            <Skeleton className="w-2 h-2 rounded-full ml-1" />
-                            <Skeleton className="w-2 h-2 rounded-full ml-1" />
-                            <Skeleton className="w-2 h-2 rounded-full ml-1" />
-                            <Skeleton className="w-2 h-2 rounded-full ml-1" />
-                          </div>
-                        </div>
-                        <Skeleton className="flex-shrink-0 w-6 h-6 rounded-full" />
-                      </div>
-                    ) : (
-                      <div className="h-[60px] flex justify-center items-center px-2">
+                    routesLoadingError && (
+                      <div className="w-full h-[60px] flex justify-center items-center px-2">
                         <p className="font-medium text-center">
                           経路の取得に失敗しました
                         </p>
                       </div>
                     )
-                  }
-                  className="bg-white mt-4 rounded-xl drop-shadow"
-                >
-                  {(routes ?? []).map((route, idx) => (
-                    <ListboxItem
-                      showDivider={(routes ?? []).length < idx}
-                      className="p-4"
-                      key={route.id}
-                      onClick={handleLineClick(
-                        route.id,
+                  )
+                }
+              >
+                {(routes ?? []).map((route) => (
+                  <ListboxItem
+                    className="p-4"
+                    key={route.id}
+                    onClick={handleLineClick(
+                      route.id,
+                      route.stops.find(
+                        (stop) => stop.groupId === Number(selectedFromStationId)
+                      )?.trainType?.typeId
+                    )}
+                    endContent={
+                      <div className="flex items-center">
+                        <ChevronRightIcon className="text-2xl text-default-400 transition-colors flex-shrink-0 cursor-pointer" />
+                      </div>
+                    }
+                    textValue={selectedFromStationId}
+                  >
+                    <p className="font-medium opacity-90">
+                      {route.stops.find(
+                        (stop) => stop.groupId === Number(selectedFromStationId)
+                      )?.line?.nameShort ?? ""}
+                      &nbsp;
+                      {removeBrackets(
                         route.stops.find(
                           (stop) =>
                             stop.groupId === Number(selectedFromStationId)
-                        )?.trainType?.typeId
+                        )?.trainType?.name ?? ""
                       )}
-                      endContent={
-                        <div className="flex items-center">
-                          <ChevronRightIcon className="text-2xl text-default-400 transition-colors flex-shrink-0 cursor-pointer" />
-                        </div>
-                      }
-                      textValue={selectedFromStationId}
-                    >
-                      <p className="font-medium opacity-90">
-                        {route.stops.find(
-                          (stop) =>
-                            stop.groupId === Number(selectedFromStationId)
-                        )?.line?.nameShort ?? ""}
-                        &nbsp;
-                        {removeBrackets(
-                          route.stops.find(
-                            (stop) =>
-                              stop.groupId === Number(selectedFromStationId)
-                          )?.trainType?.name ?? ""
-                        )}
-                      </p>
-                      <div className="mt-1">
-                        <div className="flex">
-                          {Array.from(
-                            new Map(
-                              route.stops.map((stop) => [
-                                `${stop.line?.id}:${stop.line?.color}`,
-                                stop,
-                              ])
-                            ).values()
-                          )
-                            .filter((stop, idx, arr) => {
-                              const lineColors = arr.map((s) => s.line?.color);
-                              if (lineColors.length === 1) {
-                                return true;
-                              }
-                              return lineColors.includes(stop.line?.color);
-                            })
-                            .map((stop) => (
-                              <div
-                                key={`${stop.line?.id}:${stop.line?.color}`}
-                                className="w-2 h-2 rounded-full ml-1"
-                                style={{ background: stop.line?.color }}
-                              />
-                            ))}
-                        </div>
-                        <p className="text-xs opacity-50 mt-1">
-                          {isHasTypeChange(route.id) ? "種別変更あり " : ""}
-                          {route.stops[0]?.name}駅から
-                          {route.stops[route.stops.length - 1]?.name}駅まで
-                        </p>
+                    </p>
+                    <div className="mt-1">
+                      <div className="flex">
+                        {Array.from(
+                          new Map(
+                            route.stops.map((stop) => [
+                              `${stop.line?.id}:${stop.line?.color}`,
+                              stop,
+                            ])
+                          ).values()
+                        )
+                          .filter((stop, idx, arr) => {
+                            const lineColors = arr.map((s) => s.line?.color);
+                            if (lineColors.length === 1) {
+                              return true;
+                            }
+                            return lineColors.includes(stop.line?.color);
+                          })
+                          .map((stop) => (
+                            <div
+                              key={`${stop.line?.id}:${stop.line?.color}`}
+                              className="w-2 h-2 rounded-full ml-1"
+                              style={{ background: stop.line?.color }}
+                            />
+                          ))}
                       </div>
-                    </ListboxItem>
-                  ))}
-                </Listbox>
-                <p className="font-medium mt-2 text-xs opacity-50">
-                  TrainLCDアプリで利用可能なデータであるため、実際の情報とは異なる場合があります。
-                </p>
-              </>
-            )}
-            <Button
-              variant="bordered"
-              color="primary"
-              className="mt-8 w-32 self-center"
-              onClick={() => {
-                methods.reset();
-                scroll.scrollToTop();
-              }}
-            >
-              やり直す
-            </Button>
+                      <p className="text-xs opacity-50 mt-1">
+                        {isHasTypeChange(route.id) ? "種別変更あり " : ""}
+                        {route.stops[0]?.name}駅から
+                        {route.stops[route.stops.length - 1]?.name}駅まで
+                      </p>
+                    </div>
+                  </ListboxItem>
+                ))}
+              </Listbox>
+              <p className="font-medium my-2 text-xs opacity-50">
+                TrainLCDアプリで利用可能なデータであるため、実際の情報とは異なる場合があります。
+              </p>
+            </>
           </div>
         )}
 
+        <animated.footer
+          style={footerSprings}
+          className="fixed bottom-0 w-screen py-4 lg:py-6 shadow-xl border-t-1 bg-white"
+        >
+          <div className="w-11/12 flex justify-center m-auto">
+            {screenPhase === "src" ? (
+              <Input
+                className="m-auto"
+                required
+                autoFocus
+                variant="faded"
+                label={inputLabel}
+                {...register("fromStationName")}
+              />
+            ) : null}
+            {screenPhase === "dst" ? (
+              <Input
+                className="m-auto"
+                required
+                autoFocus
+                variant="faded"
+                label={inputLabel}
+                {...register("toStationName")}
+              />
+            ) : null}
+            {screenPhase === "res" ? (
+              <Button
+                variant="bordered"
+                color="primary"
+                className="w-32 self-center"
+                onClick={() => {
+                  methods.reset();
+                  setScreenPhase("src");
+                }}
+              >
+                やり直す
+              </Button>
+            ) : null}
+          </div>
+        </animated.footer>
+
         <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
-          <ModalContent>
+          <ModalContent className="overflow-y-scroll max-h-svh">
             {(onClose) => (
               <>
-                <ModalHeader className="flex flex-col justify-center">
-                  <div className="flex items-center">
-                    <span>{modalContent.lineName}</span>
-                    <span
-                      className="ml-1 text-sm"
-                      style={{ color: modalContent.trainType?.color }}
-                    >
-                      {removeBrackets(modalContent.trainType?.name ?? "")}
-                    </span>
+                <ModalHeader className="sticky top-0 bg-white border-b-1 shadow-sm">
+                  <div className="flex flex-1 justify-between align-center h-full">
+                    <div className="flex items-center">
+                      <span>{modalContent.lineName}</span>
+                      <span
+                        className="ml-1 text-sm"
+                        style={{ color: modalContent.trainType?.color }}
+                      >
+                        {removeBrackets(modalContent.trainType?.name ?? "")}
+                      </span>
+                    </div>
+                    <button onClick={onClose}>
+                      <CloseSmallRoundedIcon />
+                    </button>
                   </div>
                 </ModalHeader>
 
