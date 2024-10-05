@@ -657,7 +657,12 @@ export default function Home() {
                 )?.name ?? ""}
               </p>
             ) : (
-              <div className="h-8" />
+              <p className="font-medium opacity-50 mt-1 mb-8 text-center text-xs">
+                {singleLine
+                  ? singleLine?.nameShort
+                  : lines?.find((l) => l.id === Number(selectedLineId))
+                      ?.nameShort}
+              </p>
             )}
 
             <>
