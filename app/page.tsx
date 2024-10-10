@@ -1,10 +1,16 @@
 "use client";
-import { Station, StopCondition } from "@/gen/proto/stationapi_pb";
+import { Line, Route, Station, StopCondition } from "@/gen/proto/stationapi_pb";
+import { useFetchLineById } from "@/hooks/useFetchLineById";
+import { useFetchLinesByName } from "@/hooks/useFetchLinesByName";
 import { useFetchRoutes } from "@/hooks/useFetchRoutes";
+import { useFetchStationsByLineId } from "@/hooks/useFetchStationsByLineId";
 import { useFetchStationsByName } from "@/hooks/useFetchStationsByName";
+import { ArrowLeftIcon } from "@/icons/ArrowLeft";
 import { CheckIcon } from "@/icons/Check";
 import { ChevronRightIcon } from "@/icons/ChevronRight";
 import { CloseSmallRoundedIcon } from "@/icons/CloseSmallRounded";
+import { RailIcon } from "@/icons/Rail";
+import { StationIcon } from "@/icons/Station";
 import dropEitherJunctionStation from "@/utils/dropJunctionStation";
 import { removeBrackets } from "@/utils/removeBracket";
 import { Listbox, ListboxItem } from "@nextui-org/listbox";
@@ -31,8 +37,10 @@ type Inputs = {
   fromStationName: string;
   selectedFromStationId: string;
   toStationName: string;
+  lineIdOrName: string;
   selectedToStationId: string;
   selectedRouteId: string;
+  selectedLineId: string;
 };
 
 const STOP_CONDITIONS = [
@@ -44,7 +52,7 @@ const STOP_CONDITIONS = [
   { id: 4, text: "休日停車", color: "red-400" },
 ] as const;
 
-const StationListBox = ({
+const SelectStationListBox = ({
   loading,
   value,
   stations,
@@ -149,6 +157,282 @@ const StationListBox = ({
   );
 };
 
+const LineListBox = ({
+  loading,
+  value,
+  lines,
+  isDirty,
+  onSelectionChange,
+}: {
+  loading: boolean;
+  value: string;
+  lines: Line[];
+  isDirty: boolean;
+  onSelectionChange: (keys: Selection) => void;
+}) => {
+  const springs = useSpring({
+    from: { opacity: 0, marginTop: "-8px" },
+    to: { opacity: 1, marginTop: "0px" },
+  });
+
+  return (
+    <animated.div
+      style={springs}
+      className="flex flex-col flex-shrink-0 min-h-dvh w-11/12 mx-auto pt-4 pb-24"
+    >
+      <Listbox
+        aria-label="検索する路線名を入力してください"
+        className="w-full rounded-xl shadow bg-white overflow-y-scroll px-4"
+        selectionMode="single"
+        disallowEmptySelection
+        emptyContent={
+          loading ? (
+            <div className="w-full p-2 pt-4 flex">
+              <div className="flex-1">
+                <Skeleton className="max-w-[200px] w-full h-4 rounded-md" />
+                <div className="flex items-center mt-1 h-4">
+                  <Skeleton className="w-2 h-2 rounded-full ml-0  " />
+                  <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                  <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                  <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                  <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                </div>
+              </div>
+              <Skeleton className="flex-shrink-0 w-6 h-6 rounded-full" />
+            </div>
+          ) : (
+            <div className="w-full h-[60px] flex justify-center items-center px-2">
+              <p className="font-medium text-center">
+                {isDirty
+                  ? "指定された路線は見つかりませんでした。"
+                  : "検索する路線名を入力してください"}
+              </p>
+            </div>
+          )
+        }
+        onSelectionChange={onSelectionChange}
+      >
+        {lines.map((l) => (
+          <ListboxItem
+            key={l.id}
+            className="p-4"
+            hideSelectedIcon
+            endContent={
+              <CheckIcon
+                className={`text-2xl transition-colors flex-shrink-0 cursor-pointer ${
+                  Number(value) === l.id ? "text-green-500" : "text-default-400"
+                }`}
+              />
+            }
+            textValue={value}
+          >
+            <p className="font-medium opacity-90">{l.nameShort}</p>
+            <div className="flex items-center mt-1 h-4">
+              <div
+                key={l.id}
+                className="w-2 h-2 rounded-full ml-1 first:ml-0"
+                style={{ background: l.color }}
+              />
+            </div>
+          </ListboxItem>
+        ))}
+      </Listbox>
+      <p className="font-medium mt-2 text-xs opacity-50">
+        10路線以上の検索結果は表示されません。
+      </p>
+    </animated.div>
+  );
+};
+
+const RoutesListBox = ({
+  isLoading,
+  fromStationId,
+  routes,
+  onStationClick,
+  error,
+}: {
+  isLoading: boolean;
+  fromStationId: number;
+  routes: Route[];
+  onStationClick: (routeId: number, typeId: number | undefined) => () => void;
+  error: Error;
+}) => {
+  const isHasTypeChange = useCallback(
+    (routeId: number) => {
+      const targetRoute = routes?.find((r) => r.id === routeId);
+      const typeIds = targetRoute?.stops.map((s) => s.trainType?.typeId);
+      return Array.from(new Set(typeIds)).length > 1;
+    },
+    [routes]
+  );
+
+  return (
+    <Listbox
+      className="w-full rounded-xl shadow bg-white overflow-y-scroll px-4"
+      emptyContent={
+        isLoading ? (
+          <div className="w-full p-2 pt-4 flex">
+            <div className="flex-1">
+              <Skeleton className="max-w-[200px] w-full h-4 rounded-md" />
+              <div className="flex items-center mt-1 h-4">
+                <Skeleton className="w-2 h-2 rounded-full ml-0  " />
+                <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                <Skeleton className="w-2 h-2 rounded-full ml-1" />
+              </div>
+            </div>
+            <Skeleton className="flex-shrink-0 w-6 h-6 rounded-full" />
+          </div>
+        ) : (
+          error && (
+            <div className="w-full h-[60px] flex justify-center items-center px-2">
+              <p className="font-medium text-center">
+                経路の取得に失敗しました
+              </p>
+            </div>
+          )
+        )
+      }
+    >
+      {(routes ?? []).map((route) => (
+        <ListboxItem
+          className="p-4"
+          key={route.id}
+          onClick={onStationClick(
+            route.id,
+            route.stops.find((stop) => stop.groupId === fromStationId)
+              ?.trainType?.typeId
+          )}
+          endContent={
+            <div className="flex items-center">
+              <ChevronRightIcon className="text-2xl text-default-400 transition-colors flex-shrink-0 cursor-pointer" />
+            </div>
+          }
+          textValue={fromStationId.toString()}
+        >
+          <p className="font-medium opacity-90">
+            {route.stops.find((stop) => stop.groupId === fromStationId)?.line
+              ?.nameShort ?? ""}
+            &nbsp;
+            {removeBrackets(
+              route.stops.find((stop) => stop.groupId === fromStationId)
+                ?.trainType?.name ?? ""
+            )}
+          </p>
+          <div className="mt-1">
+            <div className="flex">
+              {Array.from(
+                new Map(
+                  route.stops.map((stop) => [
+                    `${stop.line?.id}:${stop.line?.color}`,
+                    stop,
+                  ])
+                ).values()
+              )
+                .filter((stop, idx, arr) => {
+                  const lineColors = arr.map((s) => s.line?.color);
+                  if (lineColors.length === 1) {
+                    return true;
+                  }
+                  return lineColors.includes(stop.line?.color);
+                })
+                .map((stop) => (
+                  <div
+                    key={`${stop.line?.id}:${stop.line?.color}`}
+                    className="w-2 h-2 rounded-full ml-1"
+                    style={{ background: stop.line?.color }}
+                  />
+                ))}
+            </div>
+            <p className="text-xs opacity-50 mt-1">
+              {isHasTypeChange(route.id) ? "種別変更あり " : ""}
+              {route.stops[0]?.name}駅から
+              {route.stops[route.stops.length - 1]?.name}駅まで
+            </p>
+          </div>
+        </ListboxItem>
+      ))}
+    </Listbox>
+  );
+};
+
+const StationListBox = ({
+  isLoading,
+  stations,
+  onTrainTypeClick,
+  error,
+}: {
+  isLoading: boolean;
+  stations: Station[];
+  onTrainTypeClick: (routeId: number, typeId: number | undefined) => () => void;
+  error: Error;
+}) => {
+  return (
+    <Listbox
+      className="w-full rounded-xl shadow bg-white overflow-y-scroll px-4"
+      emptyContent={
+        isLoading ? (
+          <div className="w-full p-2 pt-4 flex">
+            <div className="flex-1">
+              <Skeleton className="max-w-[200px] w-full h-4 rounded-md" />
+              <div className="flex items-center mt-1 h-4">
+                <Skeleton className="w-2 h-2 rounded-full ml-0  " />
+                <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                <Skeleton className="w-2 h-2 rounded-full ml-1" />
+                <Skeleton className="w-2 h-2 rounded-full ml-1" />
+              </div>
+            </div>
+            <Skeleton className="flex-shrink-0 w-6 h-6 rounded-full" />
+          </div>
+        ) : (
+          error && (
+            <div className="w-full h-[60px] flex justify-center items-center px-2">
+              <p className="font-medium text-center">
+                路線の取得に失敗しました
+              </p>
+            </div>
+          )
+        )
+      }
+    >
+      {(stations ?? []).map((sta) => (
+        <ListboxItem
+          className="p-4"
+          key={sta.id}
+          onClick={onTrainTypeClick(sta.id, sta?.trainType?.typeId)}
+          endContent={
+            <div className="flex items-center">
+              <ChevronRightIcon className="text-2xl text-default-400 transition-colors flex-shrink-0 cursor-pointer" />
+            </div>
+          }
+          textValue={sta.id.toString()}
+        >
+          <p className="font-medium opacity-90">{sta.name ?? ""}</p>
+          <div className="mt-1 flex">
+            {sta.lines
+              .filter((stop, idx, arr) => {
+                const lineColors = arr.map((l) => l?.color);
+                if (lineColors.length === 1) {
+                  return true;
+                }
+                return lineColors.includes(sta.line?.color ?? "");
+              })
+              .map((l) => (
+                <div
+                  key={`${l.id}:${l.color}`}
+                  className="w-2 h-2 rounded-full ml-1"
+                  style={{ background: l.color }}
+                />
+              ))}
+          </div>
+        </ListboxItem>
+      ))}
+    </Listbox>
+  );
+};
+
 export default function Home() {
   const methods = useForm<Inputs>();
   const {
@@ -159,7 +443,9 @@ export default function Home() {
   } = methods;
   const { isOpen, onOpenChange } = useDisclosure();
   const [selectedTrainTypeId, setSelectedTrainTypeId] = useState<number>(1);
-  const [screenPhase, setScreenPhase] = useState<"src" | "dst" | "res">("src");
+  const [screenPhase, setScreenPhase] = useState<
+    "src" | "dst" | "res" | "line"
+  >("src");
 
   const DEBOUNCE_DELAY = 1000;
 
@@ -174,6 +460,8 @@ export default function Home() {
   const fromStationName = useWatch({ control, name: "fromStationName" });
   const toStationName = useWatch({ control, name: "toStationName" });
   const selectedRouteId = useWatch({ control, name: "selectedRouteId" });
+  const lineIdOrName = useWatch({ control, name: "lineIdOrName" });
+  const selectedLineId = useWatch({ control, name: "selectedLineId" });
 
   const debouncedFromStationName = useDebounce(fromStationName, DEBOUNCE_DELAY);
   const {
@@ -194,6 +482,32 @@ export default function Home() {
     Number(selectedFromStationId)
   );
 
+  const debouncedLineIdOrName = useDebounce(lineIdOrName, DEBOUNCE_DELAY);
+
+  const requestedLineId = useMemo(() => {
+    const lineId = Number(debouncedLineIdOrName);
+    if (
+      // NOTE: 新幹線の路線IDは4桁
+      lineId?.toString().length === 4 ||
+      // NOTE: 新幹線以外の路線IDは5桁
+      lineId?.toString().length === 5
+    ) {
+      return lineId;
+    }
+  }, [debouncedLineIdOrName]);
+
+  const {
+    line: singleLine,
+    error: fetchSingleLineError,
+    isLoading: isSingleLineLoading,
+  } = useFetchLineById(requestedLineId);
+
+  const {
+    lines,
+    error: fetchLinesError,
+    isLoading: isLinesLoading,
+  } = useFetchLinesByName(debouncedLineIdOrName);
+
   const {
     routes,
     isLoading: isRoutesLoading,
@@ -202,6 +516,12 @@ export default function Home() {
     Number(selectedFromStationId),
     Number(selectedToStationId)
   );
+
+  const {
+    stations: stationsByLineId,
+    isLoading: isStationsLoading,
+    error: fetchStationsError,
+  } = useFetchStationsByLineId(Number(selectedLineId));
 
   const footerSprings = useSpring({
     from: { opacity: 0, bottom: `-100%` },
@@ -214,12 +534,14 @@ export default function Home() {
         return "検索する駅名を入力してください";
       case "dst":
         return "行き先の駅名を入力してください";
+      case "line":
+        return "路線IDまたは路線名を入力してください";
       default:
         return "";
     }
   }, [screenPhase]);
 
-  const handleLineClick = useCallback(
+  const handleTrainTypeClick = useCallback(
     (routeId: number, trainTypeId: number | undefined) => () => {
       setValue("selectedRouteId", routeId.toString());
       if (trainTypeId) {
@@ -230,18 +552,26 @@ export default function Home() {
     [onOpenChange, setValue]
   );
 
+  const handleStationClick = useCallback((stationId: number) => () => {}, []);
+
+  const handleLeftButtonClick = useCallback(() => {
+    switch (screenPhase) {
+      case "src":
+        setScreenPhase("line");
+        break;
+      case "dst":
+        setScreenPhase("src");
+        break;
+      case "res":
+        setScreenPhase("dst");
+      case "line":
+        setScreenPhase("src");
+    }
+  }, [screenPhase]);
+
   const route = useMemo(
     () => routes?.find((r) => r.id === Number(selectedRouteId)),
     [routes, selectedRouteId]
-  );
-
-  const isHasTypeChange = useCallback(
-    (routeId: number) => {
-      const targetRoute = routes?.find((r) => r.id === routeId);
-      const typeIds = targetRoute?.stops.map((s) => s.trainType?.typeId);
-      return Array.from(new Set(typeIds)).length > 1;
-    },
-    [routes]
   );
 
   const fromStop = useMemo(
@@ -267,7 +597,7 @@ export default function Home() {
     <main className="flex flex-col w-screen h-full mx-auto overflow-hidden">
       <FormProvider {...methods}>
         {screenPhase === "src" && (
-          <StationListBox
+          <SelectStationListBox
             loading={isFromStationsLoading}
             value={selectedFromStationId}
             stations={fromStations}
@@ -281,7 +611,7 @@ export default function Home() {
         )}
 
         {screenPhase === "dst" && (
-          <StationListBox
+          <SelectStationListBox
             loading={isToStationsLoading}
             value={selectedToStationId}
             stations={toStations}
@@ -297,112 +627,61 @@ export default function Home() {
           />
         )}
 
+        {screenPhase === "line" && (
+          <LineListBox
+            loading={isSingleLineLoading || isLinesLoading}
+            value={selectedFromStationId}
+            lines={singleLine ? [singleLine] : lines ?? []}
+            isDirty={dirtyFields.lineIdOrName ?? false}
+            onSelectionChange={(keys) => {
+              const keysArr = Array.from(keys as Set<string>);
+              setValue("selectedLineId", keysArr[0]);
+              setScreenPhase("res");
+            }}
+          />
+        )}
+
         {screenPhase === "res" && (
           <div className="flex flex-col flex-shrink-0 min-h-dvh max-h-screen pt-4 pb-24 w-11/12 mx-auto">
             <p className="font-medium opacity-90 text-center">
               こちらの経路が見つかりました
             </p>
-            <p className="font-medium opacity-50 mt-1 mb-8 text-center text-xs">
-              {fromStations?.find(
-                (s) => s.groupId === Number(selectedFromStationId)
-              )?.name ?? ""}
-              &nbsp;-&nbsp;
-              {toStations.find((s) => s.groupId === Number(selectedToStationId))
-                ?.name ?? ""}
-            </p>
+            {fromStations.length && toStations.length ? (
+              <p className="font-medium opacity-50 mt-1 mb-8 text-center text-xs">
+                {fromStations?.find(
+                  (s) => s.groupId === Number(selectedFromStationId)
+                )?.name ?? ""}
+                &nbsp;-&nbsp;
+                {toStations.find(
+                  (s) => s.groupId === Number(selectedToStationId)
+                )?.name ?? ""}
+              </p>
+            ) : (
+              <p className="font-medium opacity-50 mt-1 mb-8 text-center text-xs">
+                {singleLine
+                  ? singleLine?.nameShort
+                  : lines?.find((l) => l.id === Number(selectedLineId))
+                      ?.nameShort}
+              </p>
+            )}
 
             <>
-              <Listbox
-                className="w-full rounded-xl shadow bg-white overflow-y-scroll px-4"
-                emptyContent={
-                  isRoutesLoading ? (
-                    <div className="w-full p-2 pt-4 flex">
-                      <div className="flex-1">
-                        <Skeleton className="max-w-[200px] w-full h-4 rounded-md" />
-                        <div className="flex items-center mt-1 h-4">
-                          <Skeleton className="w-2 h-2 rounded-full ml-0  " />
-                          <Skeleton className="w-2 h-2 rounded-full ml-1" />
-                          <Skeleton className="w-2 h-2 rounded-full ml-1" />
-                          <Skeleton className="w-2 h-2 rounded-full ml-1" />
-                          <Skeleton className="w-2 h-2 rounded-full ml-1" />
-                        </div>
-                      </div>
-                      <Skeleton className="flex-shrink-0 w-6 h-6 rounded-full" />
-                    </div>
-                  ) : (
-                    routesLoadingError && (
-                      <div className="w-full h-[60px] flex justify-center items-center px-2">
-                        <p className="font-medium text-center">
-                          経路の取得に失敗しました
-                        </p>
-                      </div>
-                    )
-                  )
-                }
-              >
-                {(routes ?? []).map((route) => (
-                  <ListboxItem
-                    className="p-4"
-                    key={route.id}
-                    onClick={handleLineClick(
-                      route.id,
-                      route.stops.find(
-                        (stop) => stop.groupId === Number(selectedFromStationId)
-                      )?.trainType?.typeId
-                    )}
-                    endContent={
-                      <div className="flex items-center">
-                        <ChevronRightIcon className="text-2xl text-default-400 transition-colors flex-shrink-0 cursor-pointer" />
-                      </div>
-                    }
-                    textValue={selectedFromStationId}
-                  >
-                    <p className="font-medium opacity-90">
-                      {route.stops.find(
-                        (stop) => stop.groupId === Number(selectedFromStationId)
-                      )?.line?.nameShort ?? ""}
-                      &nbsp;
-                      {removeBrackets(
-                        route.stops.find(
-                          (stop) =>
-                            stop.groupId === Number(selectedFromStationId)
-                        )?.trainType?.name ?? ""
-                      )}
-                    </p>
-                    <div className="mt-1">
-                      <div className="flex">
-                        {Array.from(
-                          new Map(
-                            route.stops.map((stop) => [
-                              `${stop.line?.id}:${stop.line?.color}`,
-                              stop,
-                            ])
-                          ).values()
-                        )
-                          .filter((stop, idx, arr) => {
-                            const lineColors = arr.map((s) => s.line?.color);
-                            if (lineColors.length === 1) {
-                              return true;
-                            }
-                            return lineColors.includes(stop.line?.color);
-                          })
-                          .map((stop) => (
-                            <div
-                              key={`${stop.line?.id}:${stop.line?.color}`}
-                              className="w-2 h-2 rounded-full ml-1"
-                              style={{ background: stop.line?.color }}
-                            />
-                          ))}
-                      </div>
-                      <p className="text-xs opacity-50 mt-1">
-                        {isHasTypeChange(route.id) ? "種別変更あり " : ""}
-                        {route.stops[0]?.name}駅から
-                        {route.stops[route.stops.length - 1]?.name}駅まで
-                      </p>
-                    </div>
-                  </ListboxItem>
-                ))}
-              </Listbox>
+              {selectedLineId ? (
+                <StationListBox
+                  isLoading={isStationsLoading}
+                  stations={stationsByLineId}
+                  onTrainTypeClick={handleStationClick}
+                  error={fetchStationsError}
+                />
+              ) : (
+                <RoutesListBox
+                  isLoading={isRoutesLoading}
+                  fromStationId={Number(selectedFromStationId)}
+                  routes={routes ?? []}
+                  onStationClick={handleTrainTypeClick}
+                  error={routesLoadingError}
+                />
+              )}
               <p className="font-medium my-2 text-xs opacity-50">
                 TrainLCDアプリで利用可能なデータであるため、実際の情報とは異なる場合があります。
               </p>
@@ -414,7 +693,25 @@ export default function Home() {
           style={footerSprings}
           className="fixed bottom-0 w-screen py-4 lg:py-6 shadow-xl border-t-1 bg-white"
         >
-          <div className="w-11/12 flex justify-center m-auto">
+          <div className="w-11/12 flex justify-center m-auto gap-2">
+            {screenPhase !== "res" && (
+              <Button
+                variant="bordered"
+                className="bg-default-100 shadow h-14 min-w-14 p-0"
+                onClick={handleLeftButtonClick}
+              >
+                {screenPhase === "src" ? (
+                  <StationIcon className="text-xl text-foreground-600" />
+                ) : null}
+                {screenPhase === "dst" ? (
+                  <ArrowLeftIcon className="text-xl text-foreground-600" />
+                ) : null}
+                {screenPhase === "line" ? (
+                  <RailIcon className="text-xl text-foreground-600" />
+                ) : null}
+              </Button>
+            )}
+
             {screenPhase === "src" ? (
               <Input
                 className="m-auto"
@@ -433,6 +730,16 @@ export default function Home() {
                 variant="faded"
                 label={inputLabel}
                 {...register("toStationName")}
+              />
+            ) : null}
+            {screenPhase === "line" ? (
+              <Input
+                className="m-auto"
+                required
+                autoFocus
+                variant="faded"
+                label={inputLabel}
+                {...register("lineIdOrName")}
               />
             ) : null}
             {screenPhase === "res" ? (
