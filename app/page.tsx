@@ -5,6 +5,7 @@ import { useFetchLinesByName } from "@/hooks/useFetchLinesByName";
 import { useFetchRoutes } from "@/hooks/useFetchRoutes";
 import { useFetchStationsByLineId } from "@/hooks/useFetchStationsByLineId";
 import { useFetchStationsByName } from "@/hooks/useFetchStationsByName";
+import { useParams } from "@/hooks/useParams";
 import { ArrowLeftIcon } from "@/icons/ArrowLeft";
 import { CheckIcon } from "@/icons/Check";
 import { ChevronRightIcon } from "@/icons/ChevronRight";
@@ -433,6 +434,8 @@ const StationListBox = ({
   );
 };
 
+const DEBOUNCE_DELAY = 1000;
+
 export default function Home() {
   const methods = useForm<Inputs>();
   const {
@@ -443,25 +446,56 @@ export default function Home() {
   } = methods;
   const { isOpen, onOpenChange } = useDisclosure();
   const [selectedTrainTypeId, setSelectedTrainTypeId] = useState<number>(1);
+
+  const params = useParams();
+
+  const initialScreenPhase = useMemo(() => {
+    const fromStationId = params.get("fsid");
+    const toStationId = params.get("tsid");
+    const lineId = params.get("lid");
+    const mode = params.get("mode");
+
+    if (mode === "line" && !lineId) {
+      return "line";
+    }
+
+    if ((fromStationId && toStationId) || lineId) {
+      return "res";
+    }
+
+    if (fromStationId && !toStationId) {
+      return "dst";
+    }
+
+    return "src";
+  }, [params]);
   const [screenPhase, setScreenPhase] = useState<
     "src" | "dst" | "res" | "line"
-  >("src");
-
-  const DEBOUNCE_DELAY = 1000;
+  >(initialScreenPhase);
 
   const selectedFromStationId = useWatch({
     control,
     name: "selectedFromStationId",
+    defaultValue: params.get("fsid") ?? "",
   });
   const selectedToStationId = useWatch({
     control,
     name: "selectedToStationId",
+    defaultValue: params.get("tsid") ?? "",
   });
   const fromStationName = useWatch({ control, name: "fromStationName" });
   const toStationName = useWatch({ control, name: "toStationName" });
   const selectedRouteId = useWatch({ control, name: "selectedRouteId" });
-  const lineIdOrName = useWatch({ control, name: "lineIdOrName" });
-  const selectedLineId = useWatch({ control, name: "selectedLineId" });
+  const lineIdOrName = useWatch({
+    control,
+    name: "lineIdOrName",
+    defaultValue: params.get("lid") ?? "",
+  });
+  const selectedLineId = useWatch({
+    control,
+    name: "selectedLineId",
+    defaultValue: params.get("lid") ?? "",
+  });
 
   const debouncedFromStationName = useDebounce(fromStationName, DEBOUNCE_DELAY);
   const {
@@ -485,7 +519,9 @@ export default function Home() {
   const debouncedLineIdOrName = useDebounce(lineIdOrName, DEBOUNCE_DELAY);
 
   const requestedLineId = useMemo(() => {
-    const lineId = Number(debouncedLineIdOrName);
+    const lineId =
+      (!Number.isNaN(params.get("lid")) && Number(params.get("lid"))) ||
+      Number(debouncedLineIdOrName);
     if (
       // NOTE: 新幹線の路線IDは4桁
       lineId?.toString().length === 4 ||
@@ -494,7 +530,7 @@ export default function Home() {
     ) {
       return lineId;
     }
-  }, [debouncedLineIdOrName]);
+  }, [debouncedLineIdOrName, params]);
 
   const {
     line: singleLine,
@@ -557,6 +593,7 @@ export default function Home() {
   const handleLeftButtonClick = useCallback(() => {
     switch (screenPhase) {
       case "src":
+        params.update({ mode: "line" });
         setScreenPhase("line");
         break;
       case "dst":
@@ -567,7 +604,7 @@ export default function Home() {
       case "line":
         setScreenPhase("src");
     }
-  }, [screenPhase]);
+  }, [params, screenPhase]);
 
   const route = useMemo(
     () => routes?.find((r) => r.id === Number(selectedRouteId)),
@@ -605,6 +642,7 @@ export default function Home() {
             onSelectionChange={(keys) => {
               const keysArr = Array.from(keys as Set<string>);
               setValue("selectedFromStationId", keysArr[0]);
+              params.update({ fsid: keysArr[0] });
               setScreenPhase("dst");
             }}
           />
@@ -622,6 +660,10 @@ export default function Home() {
             onSelectionChange={(keys) => {
               const keysArr = Array.from(keys as Set<string>);
               setValue("selectedToStationId", keysArr[0]);
+              params.update({
+                tsid: keysArr[0] ?? "",
+              });
+
               setScreenPhase("res");
             }}
           />
@@ -749,6 +791,7 @@ export default function Home() {
                 className="w-32 self-center"
                 onClick={() => {
                   methods.reset();
+                  params.clear();
                   setScreenPhase("src");
                 }}
               >
