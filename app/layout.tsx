@@ -1,6 +1,7 @@
 import { NextUIProvider } from "@nextui-org/react";
 import type { Metadata, Viewport } from "next";
 import { Noto_Sans_JP } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 
 const noto = Noto_Sans_JP({ subsets: ["latin"] });
@@ -28,7 +29,10 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body className={noto.className}>
-        <NextUIProvider>{children}</NextUIProvider>
+        <Suspense>
+          {" "}
+          <NextUIProvider>{children}</NextUIProvider>
+        </Suspense>
       </body>
     </html>
   );
