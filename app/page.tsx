@@ -3,11 +3,11 @@ import { Line, Route, Station, StopCondition } from "@/gen/proto/stationapi_pb";
 import { useFetchLineById } from "@/hooks/useFetchLineById";
 import { useFetchLinesByName } from "@/hooks/useFetchLinesByName";
 import { useFetchRoutes } from "@/hooks/useFetchRoutes";
+import { useFetchStationsByGroupId } from "@/hooks/useFetchStationsByGroupId";
 import { useFetchStationsByLineId } from "@/hooks/useFetchStationsByLineId";
 import { useFetchStationsByName } from "@/hooks/useFetchStationsByName";
 import { useParams } from "@/hooks/useParams";
-import { ArrowLeftIcon } from "@/icons/ArrowLeft";
-import { CheckIcon } from "@/icons/Check";
+import { CancelIcon } from "@/icons/Cancel";
 import { ChevronRightIcon } from "@/icons/ChevronRight";
 import { CloseSmallRoundedIcon } from "@/icons/CloseSmallRounded";
 import { RailIcon } from "@/icons/Rail";
@@ -116,7 +116,7 @@ const SelectStationListBox = ({
             className="p-4"
             hideSelectedIcon
             endContent={
-              <CheckIcon
+              <ChevronRightIcon
                 className={`text-2xl transition-colors flex-shrink-0 cursor-pointer ${
                   value === sta.groupId.toString()
                     ? "text-green-500"
@@ -141,16 +141,13 @@ const SelectStationListBox = ({
       </Listbox>
       <p className="font-medium mt-2 text-xs opacity-50">
         {selectedFromStation ? (
-          <span className="font-bold">
-            始点駅として &nbsp;{selectedFromStation.name}
-            &nbsp;が選択されています。
-          </span>
-        ) : null}
-        {selectedFromStation ? (
-          <span>
-            <br />
-            始点駅と接続していない駅と
-          </span>
+          <>
+            <p className="font-bold">
+              始点駅として &nbsp;{selectedFromStation.name}
+              &nbsp;が選択されています。
+            </p>
+            <span>始点駅と接続していない駅と</span>
+          </>
         ) : null}
         10駅以上の検索結果は表示されません。
       </p>
@@ -219,7 +216,7 @@ const LineListBox = ({
             className="p-4"
             hideSelectedIcon
             endContent={
-              <CheckIcon
+              <ChevronRightIcon
                 className={`text-2xl transition-colors flex-shrink-0 cursor-pointer ${
                   Number(value) === l.id ? "text-green-500" : "text-default-400"
                 }`}
@@ -506,6 +503,17 @@ export default function Home() {
     debouncedFromStationName?.replace(/駅$/, "")?.trim()
   );
 
+  const {
+    stations: fromStationsByGroupId = [],
+    error: fetchFromStationsByGroupIdError,
+    isLoading: isFromStationsByGroupIdLoading,
+  } = useFetchStationsByGroupId(Number(params.get("fsid")));
+  const {
+    stations: toStationsByGroupId = [],
+    error: fetchToStationsByGroupIdError,
+    isLoading: isToStationsByGroupIdLoading,
+  } = useFetchStationsByGroupId(Number(params.get("tsid")));
+
   const debouncedToStationName = useDebounce(toStationName, DEBOUNCE_DELAY);
   const {
     stations: toStations = [],
@@ -597,6 +605,7 @@ export default function Home() {
         setScreenPhase("line");
         break;
       case "dst":
+        params.clear();
         setScreenPhase("src");
         break;
       case "res":
@@ -630,6 +639,21 @@ export default function Home() {
     [fromStop?.line?.nameShort, route?.id, route?.stops, selectedTrainTypeId]
   );
 
+  const fromStation = useMemo(
+    () =>
+      fromStationsByGroupId?.find(
+        (s) => s.groupId === Number(selectedFromStationId)
+      ),
+    [fromStationsByGroupId, selectedFromStationId]
+  );
+  const toStation = useMemo(
+    () =>
+      toStationsByGroupId?.find(
+        (s) => s.groupId === Number(selectedToStationId)
+      ),
+    [selectedToStationId, toStationsByGroupId]
+  );
+
   return (
     <main className="flex flex-col w-screen h-full mx-auto overflow-hidden">
       <FormProvider {...methods}>
@@ -654,9 +678,7 @@ export default function Home() {
             value={selectedToStationId}
             stations={toStations}
             isDirty={dirtyFields.toStationName ?? false}
-            selectedFromStation={fromStations?.find(
-              (s) => s.groupId === Number(selectedFromStationId)
-            )}
+            selectedFromStation={fromStation}
             onSelectionChange={(keys) => {
               const keysArr = Array.from(keys as Set<string>);
               setValue("selectedToStationId", keysArr[0]);
@@ -678,34 +700,54 @@ export default function Home() {
             onSelectionChange={(keys) => {
               const keysArr = Array.from(keys as Set<string>);
               setValue("selectedLineId", keysArr[0]);
+              params.update({ lid: keysArr[0] });
               setScreenPhase("res");
             }}
           />
         )}
 
         {screenPhase === "res" && (
-          <div className="flex flex-col flex-shrink-0 min-h-dvh max-h-screen pt-4 pb-24 w-11/12 mx-auto">
+          <div className="flex flex-col flex-shrink-0 min-h-dvh max-h-screen pt-4 pb-24 w-11/12 mx-auto transition-height">
             <p className="font-medium opacity-90 text-center">
               こちらの経路が見つかりました
             </p>
-            {fromStations.length && toStations.length ? (
+
+            {params.get("mode") !== "line" &&
+            (isFromStationsLoading ||
+              isToStationsLoading ||
+              !fromStation ||
+              !toStation) ? (
+              <Skeleton className="w-32 h-4 mt-1 mb-8 self-center rounded-md" />
+            ) : null}
+
+            {params.get("mode") !== "line" &&
+            !isFromStationsLoading &&
+            !isToStationsLoading &&
+            fromStation &&
+            toStation ? (
               <p className="font-medium opacity-50 mt-1 mb-8 text-center text-xs">
-                {fromStations?.find(
-                  (s) => s.groupId === Number(selectedFromStationId)
-                )?.name ?? ""}
+                {fromStation?.name}
                 &nbsp;-&nbsp;
-                {toStations.find(
-                  (s) => s.groupId === Number(selectedToStationId)
-                )?.name ?? ""}
+                {toStation?.name}
               </p>
-            ) : (
+            ) : null}
+
+            {params.get("lid") &&
+            params.get("mode") === "line" &&
+            !isLinesLoading ? (
               <p className="font-medium opacity-50 mt-1 mb-8 text-center text-xs">
                 {singleLine
                   ? singleLine?.nameShort
                   : lines?.find((l) => l.id === Number(selectedLineId))
                       ?.nameShort}
               </p>
-            )}
+            ) : null}
+
+            {params.get("lid") &&
+            params.get("mode") === "line" &&
+            isSingleLineLoading ? (
+              <Skeleton className="w-32 h-4 mt-1 mb-8 self-center rounded-md" />
+            ) : null}
 
             <>
               {selectedLineId ? (
@@ -743,13 +785,13 @@ export default function Home() {
                 onClick={handleLeftButtonClick}
               >
                 {screenPhase === "src" ? (
-                  <StationIcon className="text-xl text-foreground-600" />
+                  <StationIcon className="text-2xl text-foreground-600" />
                 ) : null}
                 {screenPhase === "dst" ? (
-                  <ArrowLeftIcon className="text-xl text-foreground-600" />
+                  <CancelIcon className="text-2xl text-foreground-600" />
                 ) : null}
                 {screenPhase === "line" ? (
-                  <RailIcon className="text-xl text-foreground-600" />
+                  <RailIcon className="text-2xl text-foreground-600" />
                 ) : null}
               </Button>
             )}
@@ -758,7 +800,6 @@ export default function Home() {
               <Input
                 className="m-auto"
                 required
-                autoFocus
                 variant="faded"
                 label={inputLabel}
                 {...register("fromStationName")}
@@ -768,7 +809,6 @@ export default function Home() {
               <Input
                 className="m-auto"
                 required
-                autoFocus
                 variant="faded"
                 label={inputLabel}
                 {...register("toStationName")}
@@ -778,7 +818,6 @@ export default function Home() {
               <Input
                 className="m-auto"
                 required
-                autoFocus
                 variant="faded"
                 label={inputLabel}
                 {...register("lineIdOrName")}
@@ -791,6 +830,9 @@ export default function Home() {
                 className="w-32 self-center"
                 onClick={() => {
                   methods.reset();
+                  setValue("selectedLineId", "");
+                  setValue("selectedFromStationId", "");
+                  setValue("selectedToStationId", "");
                   params.clear();
                   setScreenPhase("src");
                 }}
