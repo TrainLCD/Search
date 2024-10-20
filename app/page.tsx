@@ -7,8 +7,7 @@ import { useFetchStationsByGroupId } from "@/hooks/useFetchStationsByGroupId";
 import { useFetchStationsByLineId } from "@/hooks/useFetchStationsByLineId";
 import { useFetchStationsByName } from "@/hooks/useFetchStationsByName";
 import { useParams } from "@/hooks/useParams";
-import { ArrowLeftIcon } from "@/icons/ArrowLeft";
-import { CheckIcon } from "@/icons/Check";
+import { CancelIcon } from "@/icons/Cancel";
 import { ChevronRightIcon } from "@/icons/ChevronRight";
 import { CloseSmallRoundedIcon } from "@/icons/CloseSmallRounded";
 import { RailIcon } from "@/icons/Rail";
@@ -117,7 +116,7 @@ const SelectStationListBox = ({
             className="p-4"
             hideSelectedIcon
             endContent={
-              <CheckIcon
+              <ChevronRightIcon
                 className={`text-2xl transition-colors flex-shrink-0 cursor-pointer ${
                   value === sta.groupId.toString()
                     ? "text-green-500"
@@ -217,7 +216,7 @@ const LineListBox = ({
             className="p-4"
             hideSelectedIcon
             endContent={
-              <CheckIcon
+              <ChevronRightIcon
                 className={`text-2xl transition-colors flex-shrink-0 cursor-pointer ${
                   Number(value) === l.id ? "text-green-500" : "text-default-400"
                 }`}
@@ -701,6 +700,7 @@ export default function Home() {
             onSelectionChange={(keys) => {
               const keysArr = Array.from(keys as Set<string>);
               setValue("selectedLineId", keysArr[0]);
+              params.update({ lid: keysArr[0] });
               setScreenPhase("res");
             }}
           />
@@ -712,26 +712,41 @@ export default function Home() {
               こちらの経路が見つかりました
             </p>
 
-            {isFromStationsLoading ||
-            isToStationsLoading ||
-            !fromStation ||
-            !toStation ? (
+            {params.get("mode") !== "line" &&
+            (isFromStationsLoading ||
+              isToStationsLoading ||
+              !fromStation ||
+              !toStation) ? (
               <Skeleton className="w-32 h-4 mt-1 mb-8 self-center rounded-md" />
-            ) : (
+            ) : null}
+
+            {params.get("mode") !== "line" &&
+            !isFromStationsLoading &&
+            !isToStationsLoading &&
+            fromStation &&
+            toStation ? (
               <p className="font-medium opacity-50 mt-1 mb-8 text-center text-xs">
                 {fromStation?.name}
                 &nbsp;-&nbsp;
                 {toStation?.name}
               </p>
-            )}
+            ) : null}
 
-            {params.get("lid") && params.get("mode") === "line" ? (
+            {params.get("lid") &&
+            params.get("mode") === "line" &&
+            !isLinesLoading ? (
               <p className="font-medium opacity-50 mt-1 mb-8 text-center text-xs">
                 {singleLine
                   ? singleLine?.nameShort
                   : lines?.find((l) => l.id === Number(selectedLineId))
                       ?.nameShort}
               </p>
+            ) : null}
+
+            {params.get("lid") &&
+            params.get("mode") === "line" &&
+            isSingleLineLoading ? (
+              <Skeleton className="w-32 h-4 mt-1 mb-8 self-center rounded-md" />
             ) : null}
 
             <>
@@ -770,13 +785,13 @@ export default function Home() {
                 onClick={handleLeftButtonClick}
               >
                 {screenPhase === "src" ? (
-                  <StationIcon className="text-xl text-foreground-600" />
+                  <StationIcon className="text-2xl text-foreground-600" />
                 ) : null}
                 {screenPhase === "dst" ? (
-                  <ArrowLeftIcon className="text-xl text-foreground-600" />
+                  <CancelIcon className="text-2xl text-foreground-600" />
                 ) : null}
                 {screenPhase === "line" ? (
-                  <RailIcon className="text-xl text-foreground-600" />
+                  <RailIcon className="text-2xl text-foreground-600" />
                 ) : null}
               </Button>
             )}
@@ -785,7 +800,6 @@ export default function Home() {
               <Input
                 className="m-auto"
                 required
-                autoFocus
                 variant="faded"
                 label={inputLabel}
                 {...register("fromStationName")}
@@ -795,7 +809,6 @@ export default function Home() {
               <Input
                 className="m-auto"
                 required
-                autoFocus
                 variant="faded"
                 label={inputLabel}
                 {...register("toStationName")}
@@ -805,7 +818,6 @@ export default function Home() {
               <Input
                 className="m-auto"
                 required
-                autoFocus
                 variant="faded"
                 label={inputLabel}
                 {...register("lineIdOrName")}
@@ -818,6 +830,9 @@ export default function Home() {
                 className="w-32 self-center"
                 onClick={() => {
                   methods.reset();
+                  setValue("selectedLineId", "");
+                  setValue("selectedFromStationId", "");
+                  setValue("selectedToStationId", "");
                   params.clear();
                   setScreenPhase("src");
                 }}
