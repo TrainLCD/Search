@@ -30,7 +30,6 @@ export default function RootLayout({
     <html lang="ja">
       <body className={noto.className}>
         <Suspense>
-          {" "}
           <NextUIProvider>{children}</NextUIProvider>
         </Suspense>
       </body>
