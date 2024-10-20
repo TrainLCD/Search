@@ -628,6 +628,21 @@ export default function Home() {
     [route?.stops, selectedFromStationId]
   );
 
+  const handleLaunchApp = useCallback(() => {
+    const lineGroupId = route?.stops.find(
+      (stop) => stop.trainType?.typeId === selectedTrainTypeId
+    )?.trainType?.groupId;
+    if (lineGroupId) {
+      window.open(`trainlcd-canary://route?gid=${lineGroupId}`);
+      return;
+    }
+
+    const lineId = fromStop?.line?.id;
+    if (lineId) {
+      window.open(`trainlcd-canary://route?lid=${lineId}`);
+    }
+  }, [fromStop?.line?.id, route?.stops, selectedTrainTypeId]);
+
   const modalContent = useMemo(
     () => ({
       id: route?.id,
@@ -918,6 +933,13 @@ export default function Home() {
                   </div>
                 </ModalBody>
                 <ModalFooter>
+                  <Button
+                    color="primary"
+                    variant="flat"
+                    onPress={handleLaunchApp}
+                  >
+                    アプリを起動
+                  </Button>
                   <Button color="primary" variant="light" onPress={onClose}>
                     閉じる
                   </Button>
