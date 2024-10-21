@@ -628,21 +628,6 @@ export default function Home() {
     [route?.stops, selectedFromStationId]
   );
 
-  const handleLaunchApp = useCallback(() => {
-    const lineGroupId = route?.stops.find(
-      (stop) => stop.trainType?.typeId === selectedTrainTypeId
-    )?.trainType?.groupId;
-    if (lineGroupId) {
-      window.open(`trainlcd-canary://route?gid=${lineGroupId}`);
-      return;
-    }
-
-    const lineId = fromStop?.line?.id;
-    if (lineId) {
-      window.open(`trainlcd-canary://route?lid=${lineId}`);
-    }
-  }, [fromStop?.line?.id, route?.stops, selectedTrainTypeId]);
-
   const modalContent = useMemo(
     () => ({
       id: route?.id,
@@ -668,6 +653,40 @@ export default function Home() {
       ),
     [selectedToStationId, toStationsByGroupId]
   );
+
+  const handleLaunchApp = useCallback(() => {
+    const lineGroupId = route?.stops.find(
+      (stop) => stop.trainType?.typeId === selectedTrainTypeId
+    )?.trainType?.groupId;
+
+    const direction =
+      (route?.stops ?? []).findIndex(
+        (s) => s.groupId === fromStation?.groupId
+      ) <
+      (route?.stops ?? []).findIndex((s) => s.groupId === toStation?.groupId)
+        ? 0
+        : 1;
+
+    if (lineGroupId) {
+      window.open(
+        `trainlcd-canary://route?sgid=${fromStation?.groupId}&lgid=${lineGroupId}&dir=${direction}`
+      );
+      return;
+    }
+
+    const lineId = fromStop?.line?.id;
+    if (lineId) {
+      window.open(
+        `trainlcd-canary://route?sgid=${fromStation?.groupId}&lid=${lineId}&dir=${direction}`
+      );
+    }
+  }, [
+    fromStation?.groupId,
+    fromStop?.line?.id,
+    route?.stops,
+    selectedTrainTypeId,
+    toStation?.groupId,
+  ]);
 
   return (
     <main className="flex flex-col w-screen h-full mx-auto overflow-hidden">
