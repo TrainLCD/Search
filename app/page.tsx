@@ -31,7 +31,7 @@ import {
 } from "@nextui-org/react";
 import { animated, useSpring } from "@react-spring/web";
 import { useDebounce } from "@uidotdev/usehooks";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 
 type Inputs = {
@@ -252,7 +252,7 @@ const RoutesListBox = ({
   isLoading: boolean;
   fromStationId: number;
   routes: Route[];
-  onStationClick: (routeId: number, typeId: number | undefined) => () => void;
+  onStationClick: (routeId: number) => () => void;
   error: Error;
 }) => {
   const isHasTypeChange = useCallback(
@@ -297,11 +297,7 @@ const RoutesListBox = ({
         <ListboxItem
           className="p-4"
           key={route.id}
-          onClick={onStationClick(
-            route.id,
-            route.stops.find((stop) => stop.groupId === fromStationId)
-              ?.trainType?.typeId
-          )}
+          onClick={onStationClick(route.id)}
           endContent={
             <div className="flex items-center">
               <ChevronRightIcon className="text-2xl text-default-400 transition-colors flex-shrink-0 cursor-pointer" />
@@ -441,10 +437,17 @@ export default function Home() {
     control,
     formState: { dirtyFields },
   } = methods;
-  const { isOpen, onOpenChange } = useDisclosure();
-  const [selectedTrainTypeId, setSelectedTrainTypeId] = useState<number>(1);
+  const { isOpen, onOpenChange, onOpen, onClose } = useDisclosure();
 
   const params = useParams();
+
+  const routeId = useMemo(() => params.get("rid"), [params]);
+
+  const handleClose = useCallback(() => {
+    params.remove("rid");
+
+    onClose();
+  }, [onClose, params]);
 
   const initialScreenPhase = useMemo(() => {
     const fromStationId = params.get("fsid");
@@ -482,7 +485,11 @@ export default function Home() {
   });
   const fromStationName = useWatch({ control, name: "fromStationName" });
   const toStationName = useWatch({ control, name: "toStationName" });
-  const selectedRouteId = useWatch({ control, name: "selectedRouteId" });
+  const selectedRouteId = useWatch({
+    control,
+    name: "selectedRouteId",
+    defaultValue: params.get("rid") ?? "",
+  });
   const lineIdOrName = useWatch({
     control,
     name: "lineIdOrName",
@@ -567,6 +574,12 @@ export default function Home() {
     error: fetchStationsError,
   } = useFetchStationsByLineId(Number(selectedLineId));
 
+  useEffect(() => {
+    if (routeId) {
+      onOpen();
+    }
+  }, [onOpen, routeId]);
+
   const footerSprings = useSpring({
     from: { opacity: 0, bottom: `-100%` },
     to: { opacity: 1, bottom: "0%" },
@@ -586,14 +599,14 @@ export default function Home() {
   }, [screenPhase]);
 
   const handleTrainTypeClick = useCallback(
-    (routeId: number, trainTypeId: number | undefined) => () => {
+    (routeId: number) => () => {
       setValue("selectedRouteId", routeId.toString());
-      if (trainTypeId) {
-        setSelectedTrainTypeId(trainTypeId);
-      }
+      params.update({
+        rid: routeId.toString(),
+      });
       onOpenChange();
     },
-    [onOpenChange, setValue]
+    [onOpenChange, params, setValue]
   );
 
   const handleStationClick = useCallback((stationId: number) => () => {}, []);
@@ -633,10 +646,10 @@ export default function Home() {
       id: route?.id,
       lineName: fromStop?.line?.nameShort,
       trainType: route?.stops.find(
-        (stop) => stop.trainType?.typeId === selectedTrainTypeId
+        (stop) => stop.trainType?.groupId === Number(selectedRouteId)
       )?.trainType,
     }),
-    [fromStop?.line?.nameShort, route?.id, route?.stops, selectedTrainTypeId]
+    [fromStop?.line?.nameShort, route?.id, route?.stops, selectedRouteId]
   );
 
   const fromStation = useMemo(
@@ -656,7 +669,7 @@ export default function Home() {
 
   const handleLaunchApp = useCallback(() => {
     const lineGroupId = route?.stops.find(
-      (stop) => stop.trainType?.typeId === selectedTrainTypeId
+      (stop) => stop.trainType?.groupId === Number(selectedRouteId)
     )?.trainType?.groupId;
 
     const direction =
@@ -684,7 +697,7 @@ export default function Home() {
     fromStation?.groupId,
     fromStop?.line?.id,
     route?.stops,
-    selectedTrainTypeId,
+    selectedRouteId,
     toStation?.groupId,
   ]);
 
@@ -877,7 +890,11 @@ export default function Home() {
           </div>
         </animated.footer>
 
-        <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
+        <Modal
+          isOpen={isOpen}
+          onOpenChange={onOpenChange}
+          onClose={handleClose}
+        >
           <ModalContent className="overflow-y-scroll max-h-svh">
             {(onClose) => (
               <>

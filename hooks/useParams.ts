@@ -6,24 +6,16 @@ export const useParams = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const createQueryString = useCallback(
-    (name: string, value: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set(name, value);
-
-      return params.toString();
-    },
-    [searchParams]
-  );
-
   const update = useCallback(
     (paramMap: Record<string, string>) => {
-      const queryStrings = Object.entries(paramMap)
-        .flatMap(([key, value]) => createQueryString(key, value))
-        .join("&");
-      router.replace(pathname + "?" + queryStrings);
+      const current = new URLSearchParams(Array.from(searchParams.entries()));
+      const entries = Object.entries(paramMap);
+      entries.forEach(([key, value]) => current.set(key, value));
+      const search = current.toString();
+      const query = search ? `?${search}` : "";
+      router.push(`${pathname}${query}`);
     },
-    [createQueryString, pathname, router]
+    [pathname, router, searchParams]
   );
 
   const get = useCallback(
@@ -31,9 +23,20 @@ export const useParams = () => {
     [searchParams]
   );
 
+  const remove = useCallback(
+    (key: string) => {
+      const current = new URLSearchParams(Array.from(searchParams.entries()));
+      current.delete(key);
+      const search = current.toString();
+      const query = search ? `?${search}` : "";
+      router.replace(`${pathname}${query}`);
+    },
+    [pathname, router, searchParams]
+  );
+
   const clear = useCallback(() => {
-    router.push(pathname);
+    router.replace(pathname);
   }, [pathname, router]);
 
-  return { update, get, clear };
+  return { update, get, remove, clear };
 };
