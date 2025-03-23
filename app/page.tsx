@@ -15,7 +15,7 @@ import { useDisclosure } from "@nextui-org/modal";
 import { Button, Input, Selection, Skeleton } from "@nextui-org/react";
 import { animated, useSpring } from "@react-spring/web";
 import { useDebounce } from "@uidotdev/usehooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { MenuModal } from "@/components/MenuModal";
 import { RouteInfoModal } from "@/components/RouteInfoModal";

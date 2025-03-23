@@ -6,7 +6,6 @@ import {
   ModalFooter,
   ModalHeader,
 } from "@nextui-org/modal";
-import { CancelIcon } from "./icons/Cancel";
 import { RailIcon } from "./icons/Rail";
 import { StationIcon } from "./icons/Station";
 import { Listbox, ListboxItem, ListboxSection } from "@nextui-org/listbox";
