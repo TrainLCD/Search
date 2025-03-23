@@ -1,5 +1,5 @@
 "use client";
-import { Line, Route, Station, StopCondition } from "@/gen/proto/stationapi_pb";
+import { Line, Route, Station } from "@/gen/proto/stationapi_pb";
 import { useFetchLineById } from "@/hooks/useFetchLineById";
 import { useFetchLinesByName } from "@/hooks/useFetchLinesByName";
 import { useFetchRoutes } from "@/hooks/useFetchRoutes";
@@ -7,32 +7,18 @@ import { useFetchStationsByGroupId } from "@/hooks/useFetchStationsByGroupId";
 import { useFetchStationsByLineId } from "@/hooks/useFetchStationsByLineId";
 import { useFetchStationsByName } from "@/hooks/useFetchStationsByName";
 import { useParams } from "@/hooks/useParams";
-import { CancelIcon } from "@/icons/Cancel";
-import { ChevronRightIcon } from "@/icons/ChevronRight";
-import { CloseSmallRoundedIcon } from "@/icons/CloseSmallRounded";
-import { RailIcon } from "@/icons/Rail";
-import { StationIcon } from "@/icons/Station";
-import dropEitherJunctionStation from "@/utils/dropJunctionStation";
+import { ChevronRightIcon } from "@/components/icons/ChevronRight";
+import { MenuIcon } from "@/components/icons/Menu";
 import { removeBrackets } from "@/utils/removeBracket";
 import { Listbox, ListboxItem } from "@nextui-org/listbox";
-import {
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  useDisclosure,
-} from "@nextui-org/modal";
-import {
-  Button,
-  Input,
-  Modal,
-  ModalContent,
-  Selection,
-  Skeleton,
-} from "@nextui-org/react";
+import { useDisclosure } from "@nextui-org/modal";
+import { Button, Input, Selection, Skeleton } from "@nextui-org/react";
 import { animated, useSpring } from "@react-spring/web";
 import { useDebounce } from "@uidotdev/usehooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
+import { MenuModal } from "@/components/MenuModal";
+import { RouteInfoModal } from "@/components/RouteInfoModal";
 
 type Inputs = {
   fromStationName: string;
@@ -146,7 +132,7 @@ const SelectStationListBox = ({
               始点駅として &nbsp;{selectedFromStation.name}
               &nbsp;が選択されています。
             </p>
-            <span>始点駅と接続していない駅と</span>
+            <p>始点駅と接続していない駅と</p>
           </>
         ) : null}
         10駅以上の検索結果は表示されません。
@@ -437,27 +423,22 @@ export default function Home() {
     control,
     formState: { dirtyFields },
   } = methods;
-  const { isOpen, onOpenChange, onOpen, onClose } = useDisclosure();
+  const {
+    isOpen: isRouteInfoOpen,
+    onOpenChange: onRouteInfoOpenChange,
+    onOpen: onRouteInfoOpen,
+  } = useDisclosure();
+  const { isOpen: isMenuOpen, onOpenChange: onMenuOpenChange } =
+    useDisclosure();
 
   const params = useParams();
 
   const routeId = useMemo(() => params.get("rid"), [params]);
 
-  const handleClose = useCallback(() => {
-    params.remove("rid");
-
-    onClose();
-  }, [onClose, params]);
-
-  const initialScreenPhase = useMemo(() => {
+  const screenMode = useMemo(() => {
     const fromStationId = params.get("fsid");
     const toStationId = params.get("tsid");
     const lineId = params.get("lid");
-    const mode = params.get("mode");
-
-    if (mode === "line" && !lineId) {
-      return "line";
-    }
 
     if ((fromStationId && toStationId) || lineId) {
       return "res";
@@ -469,9 +450,18 @@ export default function Home() {
 
     return "src";
   }, [params]);
-  const [screenPhase, setScreenPhase] = useState<
-    "src" | "dst" | "res" | "line"
-  >(initialScreenPhase);
+
+  const searchMode = useMemo(() => {
+    const mode = params.get("mode");
+    const lineId = params.get("lid");
+
+    if (mode === "line" && !lineId) {
+      return "line";
+    }
+    return "station";
+  }, [params]);
+
+  const devMode = useMemo(() => params.get("dev") === "true", [params]);
 
   const selectedFromStationId = useWatch({
     control,
@@ -576,9 +566,9 @@ export default function Home() {
 
   useEffect(() => {
     if (routeId) {
-      onOpen();
+      onRouteInfoOpen();
     }
-  }, [onOpen, routeId]);
+  }, [onRouteInfoOpen, routeId]);
 
   const footerSprings = useSpring({
     from: { opacity: 0, bottom: `-100%` },
@@ -586,17 +576,20 @@ export default function Home() {
   });
 
   const inputLabel = useMemo(() => {
-    switch (screenPhase) {
-      case "src":
-        return "検索する駅名を入力してください";
-      case "dst":
-        return "行き先の駅名を入力してください";
-      case "line":
-        return "路線IDまたは路線名を入力してください";
-      default:
-        return "";
+    if (searchMode === "line") {
+      return "路線IDまたは路線名を入力してください";
     }
-  }, [screenPhase]);
+
+    if (searchMode === "station") {
+      switch (screenMode) {
+        case "src":
+          return "検索する駅名を入力してください";
+        case "dst":
+          return "行き先の駅名を入力してください";
+      }
+    }
+    return "";
+  }, [screenMode, searchMode]);
 
   const handleTrainTypeClick = useCallback(
     (routeId: number) => () => {
@@ -604,29 +597,12 @@ export default function Home() {
       params.update({
         rid: routeId.toString(),
       });
-      onOpenChange();
+      onRouteInfoOpenChange();
     },
-    [onOpenChange, params, setValue]
+    [onRouteInfoOpenChange, params, setValue]
   );
 
   const handleStationClick = useCallback((stationId: number) => () => {}, []);
-
-  const handleLeftButtonClick = useCallback(() => {
-    switch (screenPhase) {
-      case "src":
-        params.update({ mode: "line" });
-        setScreenPhase("line");
-        break;
-      case "dst":
-        params.clear();
-        setScreenPhase("src");
-        break;
-      case "res":
-        setScreenPhase("dst");
-      case "line":
-        setScreenPhase("src");
-    }
-  }, [params, screenPhase]);
 
   const route = useMemo(
     () => routes?.find((r) => r.id === Number(selectedRouteId)),
@@ -668,6 +644,8 @@ export default function Home() {
   );
 
   const handleLaunchApp = useCallback(() => {
+    const appScheme = devMode ? "trainlcd-canary://" : "trainlcd://";
+
     const lineGroupId = route?.stops.find(
       (stop) => stop.trainType?.groupId === Number(selectedRouteId)
     )?.trainType?.groupId;
@@ -682,7 +660,7 @@ export default function Home() {
 
     if (lineGroupId) {
       window.open(
-        `trainlcd-canary://route?sgid=${fromStation?.groupId}&lgid=${lineGroupId}&dir=${direction}`
+        `${appScheme}route?sgid=${fromStation?.groupId}&lgid=${lineGroupId}&dir=${direction}`
       );
       return;
     }
@@ -690,10 +668,11 @@ export default function Home() {
     const lineId = fromStop?.line?.id;
     if (lineId) {
       window.open(
-        `trainlcd-canary://route?sgid=${fromStation?.groupId}&lid=${lineId}&dir=${direction}`
+        `${appScheme}route?sgid=${fromStation?.groupId}&lid=${lineId}&dir=${direction}`
       );
     }
   }, [
+    devMode,
     fromStation?.groupId,
     fromStop?.line?.id,
     route?.stops,
@@ -701,10 +680,22 @@ export default function Home() {
     toStation?.groupId,
   ]);
 
+  const handleUpdateSearchMode = useCallback(
+    (mode: "station" | "line" | "dev") => {
+      if (mode !== "dev") {
+        onMenuOpenChange();
+        params.update({ mode });
+        return;
+      }
+      params.update({ dev: devMode ? "false" : "true" });
+    },
+    [devMode, onMenuOpenChange, params]
+  );
+
   return (
     <main className="flex flex-col w-screen h-full mx-auto overflow-hidden">
       <FormProvider {...methods}>
-        {screenPhase === "src" && (
+        {searchMode === "station" && screenMode === "src" && (
           <SelectStationListBox
             loading={isFromStationsLoading}
             value={selectedFromStationId}
@@ -714,12 +705,11 @@ export default function Home() {
               const keysArr = Array.from(keys as Set<string>);
               setValue("selectedFromStationId", keysArr[0]);
               params.update({ fsid: keysArr[0] });
-              setScreenPhase("dst");
             }}
           />
         )}
 
-        {screenPhase === "dst" && (
+        {searchMode === "station" && screenMode === "dst" && (
           <SelectStationListBox
             loading={isToStationsLoading}
             value={selectedToStationId}
@@ -732,13 +722,11 @@ export default function Home() {
               params.update({
                 tsid: keysArr[0] ?? "",
               });
-
-              setScreenPhase("res");
             }}
           />
         )}
 
-        {screenPhase === "line" && (
+        {searchMode === "line" && screenMode !== "res" && (
           <LineListBox
             loading={isSingleLineLoading || isLinesLoading}
             value={selectedFromStationId}
@@ -748,12 +736,11 @@ export default function Home() {
               const keysArr = Array.from(keys as Set<string>);
               setValue("selectedLineId", keysArr[0]);
               params.update({ lid: keysArr[0] });
-              setScreenPhase("res");
             }}
           />
         )}
 
-        {screenPhase === "res" && (
+        {screenMode === "res" && (
           <div className="flex flex-col flex-shrink-0 min-h-dvh max-h-screen pt-4 pb-24 w-11/12 mx-auto transition-height">
             <p className="font-medium opacity-90 text-center">
               こちらの経路が見つかりました
@@ -825,25 +812,17 @@ export default function Home() {
           className="fixed bottom-0 w-screen py-4 lg:py-6 shadow-xl border-t-1 bg-white"
         >
           <div className="w-11/12 flex justify-center m-auto gap-2">
-            {screenPhase !== "res" && (
+            {screenMode !== "res" && (
               <Button
                 variant="bordered"
                 className="bg-default-100 shadow h-14 min-w-14 p-0"
-                onClick={handleLeftButtonClick}
+                onClick={onMenuOpenChange}
               >
-                {screenPhase === "src" ? (
-                  <StationIcon className="text-2xl text-foreground-600" />
-                ) : null}
-                {screenPhase === "dst" ? (
-                  <CancelIcon className="text-2xl text-foreground-600" />
-                ) : null}
-                {screenPhase === "line" ? (
-                  <RailIcon className="text-2xl text-foreground-600" />
-                ) : null}
+                <MenuIcon className="text-2xl text-foreground-600" />
               </Button>
             )}
 
-            {screenPhase === "src" ? (
+            {searchMode == "station" && screenMode === "src" ? (
               <Input
                 className="m-auto"
                 required
@@ -852,7 +831,7 @@ export default function Home() {
                 {...register("fromStationName")}
               />
             ) : null}
-            {screenPhase === "dst" ? (
+            {searchMode === "station" && screenMode === "dst" ? (
               <Input
                 className="m-auto"
                 required
@@ -861,7 +840,7 @@ export default function Home() {
                 {...register("toStationName")}
               />
             ) : null}
-            {screenPhase === "line" ? (
+            {searchMode === "line" && screenMode !== "res" ? (
               <Input
                 className="m-auto"
                 required
@@ -870,7 +849,7 @@ export default function Home() {
                 {...register("lineIdOrName")}
               />
             ) : null}
-            {screenPhase === "res" ? (
+            {screenMode === "res" ? (
               <Button
                 variant="bordered"
                 color="primary"
@@ -881,7 +860,6 @@ export default function Home() {
                   setValue("selectedFromStationId", "");
                   setValue("selectedToStationId", "");
                   params.clear();
-                  setScreenPhase("src");
                 }}
               >
                 やり直す
@@ -890,100 +868,20 @@ export default function Home() {
           </div>
         </animated.footer>
 
-        <Modal
-          isOpen={isOpen}
-          onOpenChange={onOpenChange}
-          onClose={handleClose}
-        >
-          <ModalContent className="overflow-y-scroll max-h-svh">
-            {(onClose) => (
-              <>
-                <ModalHeader className="sticky top-0 bg-white border-b-1 shadow-sm">
-                  <div className="flex flex-1 justify-between align-center h-full">
-                    <div className="flex items-center">
-                      <span>{modalContent.lineName}</span>
-                      <span
-                        className="ml-1 text-sm"
-                        style={{ color: modalContent.trainType?.color }}
-                      >
-                        {removeBrackets(modalContent.trainType?.name ?? "")}
-                      </span>
-                    </div>
-                    <button onClick={onClose}>
-                      <CloseSmallRoundedIcon />
-                    </button>
-                  </div>
-                </ModalHeader>
-
-                <ModalBody>
-                  <p className="font-bold">停車駅: </p>
-                  <div className="flex flex-wrap gap-x-2">
-                    {dropEitherJunctionStation(route?.stops ?? []).flatMap(
-                      (stop) =>
-                        stop.stopCondition === StopCondition.All ? (
-                          <span>{stop.name}</span>
-                        ) : (
-                          <span
-                            className={`text-${
-                              STOP_CONDITIONS.find(
-                                (cnd) => cnd.id === stop.stopCondition
-                              )?.color ?? ""
-                            }`}
-                          >
-                            {stop.name}
-                          </span>
-                        )
-                    )}
-                  </div>
-
-                  <div className="flex gap-2 flex-wrap">
-                    {STOP_CONDITIONS.map((cnd) => (
-                      <div className="flex items-center gap-2" key={cnd.id}>
-                        <div
-                          className={`w-4 h-4 bg-${cnd.color} border-1 rounded`}
-                        />
-                        <span>{cnd.text}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <p className="font-bold">各線の種別: </p>
-                  <div className="whitespace-pre-wrap">
-                    {Array.from(
-                      new Map(
-                        route?.stops.map((stop) => [stop.line?.id, stop])
-                      ).values()
-                    ).map((stop) => (
-                      <p key={stop.line?.id} className="flex flex-wrap">
-                        <span className="flex-1">{stop.line?.nameShort}: </span>
-                        <span
-                          className="flex-1 font-bold"
-                          style={{ color: stop.trainType?.color }}
-                        >
-                          {removeBrackets(
-                            stop.trainType?.name ?? "普通または各駅停車"
-                          )}
-                        </span>
-                      </p>
-                    ))}
-                  </div>
-                </ModalBody>
-                <ModalFooter>
-                  <Button
-                    color="primary"
-                    variant="flat"
-                    onPress={handleLaunchApp}
-                  >
-                    アプリを起動
-                  </Button>
-                  <Button color="primary" variant="light" onPress={onClose}>
-                    閉じる
-                  </Button>
-                </ModalFooter>
-              </>
-            )}
-          </ModalContent>
-        </Modal>
+        <MenuModal
+          isOpen={isMenuOpen}
+          onOpenChange={onMenuOpenChange}
+          onSelect={handleUpdateSearchMode}
+          value={searchMode}
+          devMode={devMode}
+        />
+        <RouteInfoModal
+          isOpen={isRouteInfoOpen}
+          onOpenChange={onRouteInfoOpenChange}
+          modalContent={modalContent}
+          route={route}
+          onLaunchApp={handleLaunchApp}
+        />
       </FormProvider>
     </main>
   );

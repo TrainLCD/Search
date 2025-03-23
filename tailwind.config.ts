@@ -23,6 +23,10 @@ const config: Config = {
     },
   },
   darkMode: "class",
-  plugins: [nextui()],
+  plugins: [
+    nextui({
+      addCommonColors: true,
+    }),
+  ],
 };
 export default config;
